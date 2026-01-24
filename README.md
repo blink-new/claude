@@ -1,4 +1,6 @@
-# Cursor / Claude Agents
+# Cursor / Claude Agents & Skills
+
+## Agents
 
 Run from repo root:
 
@@ -11,8 +13,17 @@ ln -sfn "$(pwd)/agents" ~/.claude/agents
 Or copy agents (no symlinks):
 
 ```bash
-mkdir -p ~/.cursor/agents
-mkdir -p ~/.claude/agents
+mkdir -p ~/.cursor/agents ~/.claude/agents
 cp -R ./agents/. ~/.cursor/agents/
 cp -R ./agents/. ~/.claude/agents/
+```
+
+## Skills
+
+Copy skills without overwriting existing ones:
+
+```bash
+mkdir -p ~/.cursor/skills ~/.claude/skills
+cp -Rn ./skills/* ~/.cursor/skills/
+cp -Rn ./skills/* ~/.claude/skills/
 ```

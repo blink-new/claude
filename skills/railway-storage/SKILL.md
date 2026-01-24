@@ -17,13 +17,17 @@ To serve files publicly:
 
 ## Environment Variables
 
+Railway auto-injects these when you link a storage bucket to your service. Use these exact names:
+
 ```bash
-S3_ENDPOINT=https://storage.railway.app
-S3_REGION=auto
-S3_BUCKET_NAME=your-bucket-name
-S3_ACCESS_KEY_ID=tid_xxx
-S3_SECRET_ACCESS_KEY=tsec_xxx
+AWS_ENDPOINT_URL=https://storage.railway.app
+AWS_DEFAULT_REGION=auto
+AWS_S3_BUCKET_NAME=your-bucket-name
+AWS_ACCESS_KEY_ID=tid_xxx
+AWS_SECRET_ACCESS_KEY=tsec_xxx
 ```
+
+**Important:** Railway uses `AWS_*` prefixed names by default. Do NOT use `S3_*` prefixes as they won't match Railway's injected variables.
 
 ## S3 Client Setup
 
@@ -37,11 +41,11 @@ let s3Client: S3Client | null = null;
 function getS3Client(): S3Client {
   if (!s3Client) {
     s3Client = new S3Client({
-      endpoint: process.env.S3_ENDPOINT,
-      region: process.env.S3_REGION ?? "auto",
+      endpoint: process.env.AWS_ENDPOINT_URL,
+      region: process.env.AWS_DEFAULT_REGION ?? "auto",
       credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
       },
       forcePathStyle: true, // Required for Railway
     });
@@ -111,7 +115,7 @@ Helper to read from S3:
 export async function getS3Object(key: string) {
   const client = getS3Client();
   const response = await client.send(
-    new GetObjectCommand({ Bucket: process.env.S3_BUCKET_NAME!, Key: key })
+    new GetObjectCommand({ Bucket: process.env.AWS_S3_BUCKET_NAME!, Key: key })
   );
   if (!response.Body) return null;
 
