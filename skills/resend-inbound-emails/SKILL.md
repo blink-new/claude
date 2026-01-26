@@ -437,6 +437,9 @@ src/
 | `assets/components/email-settings-section.tsx` | Domain selector UI |
 | `assets/components/team-personalization-section.tsx` | AI personalization settings (OPTIONAL) |
 | `assets/components/inbox-notification-provider.tsx` | Polling provider wrapper |
+| `assets/lib/redis.ts` | Redis pub/sub client (OPTIONAL) |
+| `assets/api/inbox-events-sse-route.ts` | SSE endpoint (OPTIONAL) |
+| `assets/hooks/use-inbox-realtime.ts` | SSE hook (OPTIONAL) |
 
 ## Setup Instructions
 
@@ -551,7 +554,9 @@ Teams can configure AI personalization settings:
 
 ## Real-time Updates
 
-### Inbox Polling
+Two approaches are available. **Polling is recommended** for simplicity and serverless compatibility.
+
+### Option 1: Polling (Recommended)
 
 The system uses polling (10s interval) for reliability with serverless:
 
@@ -573,6 +578,38 @@ Features:
 - Auto-refetch inbox queries on new messages
 - Memory cleanup (keeps last 100 message IDs)
 - Click "View" to navigate to message
+- **No Redis required**
+
+### Option 2: SSE with Redis (OPTIONAL)
+
+For true real-time updates, use Server-Sent Events with Redis pub/sub:
+
+```typescript
+// Hook usage
+useInboxRealtime(teamId, {
+  enabled: true,
+  onNewMessage: (data) => console.log("New message:", data),
+});
+```
+
+**Requirements:**
+- Redis instance (e.g., Railway Redis)
+- `REDIS_URL` environment variable
+- `ioredis` package
+
+**Flow:**
+1. Webhook receives email → calls `publishInboxEvent(teamId, event)`
+2. Redis publishes to channel `inbox:events:{teamId}`
+3. SSE connections subscribed to channel receive event instantly
+4. Frontend updates via `useInboxRealtime` hook
+
+**Event types:**
+- `new_message` - New inbound email received
+- `inbox_update` - Thread/message updated
+- `message_status` - Delivery status changed (sent, delivered, bounced)
+
+**Advantages:** True real-time, more efficient
+**Disadvantages:** Requires Redis, connection limits with serverless
 
 ## Checklist
 
@@ -594,3 +631,4 @@ Features:
 - [ ] PersonalizedEmailPreview model + review API routes
 - [ ] pg-boss worker for bulk send
 - [ ] TipTap rich text editor
+- [ ] SSE with Redis for true real-time (lib/redis.ts, inbox/events route)

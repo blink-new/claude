@@ -20,3 +20,11 @@ DEFAULT_EMAIL_DOMAIN="inbox.yourdomain.com"
 
 # Application URL (for notification email links)
 NEXT_PUBLIC_APP_URL="https://yourdomain.com"
+
+# ===========================================
+# OPTIONAL: Redis for SSE real-time updates
+# ===========================================
+# Only needed if using SSE instead of polling
+# Get from Railway Redis or any Redis provider
+
+# REDIS_URL="redis://default:password@host:port"
