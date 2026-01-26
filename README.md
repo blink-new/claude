@@ -24,6 +24,6 @@ Copy skills without overwriting existing ones:
 
 ```bash
 mkdir -p ~/.cursor/skills ~/.claude/skills
-cp -Rn ./skills/* ~/.cursor/skills/
-cp -Rn ./skills/* ~/.claude/skills/
+rsync -a --ignore-existing ./skills/ ~/.cursor/skills/
+rsync -a --ignore-existing ./skills/ ~/.claude/skills/
 ```
