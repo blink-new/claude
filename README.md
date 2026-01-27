@@ -1,29 +1,51 @@
-# Cursor / Claude Agents & Skills
+# Agents & Skills
 
-## Agents
+Unified location: `~/.agents/` — shared across Cursor, Claude, and other AI tools.
 
-Run from repo root:
+## What's Included
+
+### Agents
+
+Specialized subagents for development workflows:
+
+- `explorer` — Codebase exploration and understanding
+- `planner` — Creates PRDs for new features
+- `implementer` — Implements PRDs and fixes issues
+- `verifier` — Reviews code and reports pass/fail
+- `git-manager` — Handles git commits
+
+### Skills
+
+Reusable patterns and templates:
+
+- `team-saas` — Multi-tenant SaaS boilerplate
+- `saas-sidebar` — Dashboard shell with team switcher
+- `wysiwyg-editor` — Rich text editor components
+- `kanban-dnd` — Drag-and-drop kanban board
+- `bulk-select-actions` — Table selection with bulk actions
+- `resend-inbound-emails` — Email inbox with Resend
+- `railway-storage` — S3-compatible storage setup
+- `nextjs-16-proxy` — Next.js 16 proxy convention
+
+## Install
 
 ```bash
-mkdir -p ~/.cursor ~/.claude
-ln -sfn "$(pwd)/agents" ~/.cursor/agents
-ln -sfn "$(pwd)/agents" ~/.claude/agents
+mkdir -p ~/.agents
+ln -sfn "$(pwd)/agents" ~/.agents/agents
+ln -sfn "$(pwd)/skills" ~/.agents/skills
 ```
 
-Or copy agents (no symlinks):
+Then symlink `~/.agents` to each agent:
 
 ```bash
-mkdir -p ~/.cursor/agents ~/.claude/agents
-cp -R ./agents/. ~/.cursor/agents/
-cp -R ./agents/. ~/.claude/agents/
+ln -sfn ~/.agents ~/.cursor/agents
+ln -sfn ~/.agents ~/.claude/agents
 ```
 
-## Skills
-
-Copy skills without overwriting existing ones:
+## Or Copy (no symlinks)
 
 ```bash
-mkdir -p ~/.cursor/skills ~/.claude/skills
-rsync -a --ignore-existing ./skills/ ~/.cursor/skills/
-rsync -a --ignore-existing ./skills/ ~/.claude/skills/
+mkdir -p ~/.agents/agents ~/.agents/skills
+cp -R ./agents/. ~/.agents/agents/
+rsync -a --ignore-existing ./skills/ ~/.agents/skills/
 ```
