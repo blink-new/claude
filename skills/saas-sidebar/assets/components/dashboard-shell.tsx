@@ -108,10 +108,11 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           SIDEBAR
           - w-64 expanded, w-16 collapsed
           - Fixed on mobile, relative on desktop
+          - group/sidebar enables hover detection anywhere on sidebar
           =================================================================== */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-200 lg:relative lg:translate-x-0",
+          "group/sidebar fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-200 lg:relative lg:translate-x-0",
           collapsed ? "w-16" : "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
@@ -119,36 +120,35 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
         <div className="flex h-full flex-col">
           {/* =================================================================
               HEADER - Team Switcher + Collapse Toggle
-              - Collapse button appears on hover (desktop only)
-              - Uses group/header for hover detection
+              - When collapsed: team switcher shows by default
+              - On hover (anywhere on sidebar): team switcher hides, expand btn shows
+              - Both are h-10 w-10 for no layout shift
               ================================================================= */}
           <div className={cn(
-            "group/header flex items-center border-b border-sidebar-border",
+            "flex items-center border-b border-sidebar-border",
             collapsed ? "p-2 justify-center" : "p-3 gap-2"
           )}>
-            {/* Team Switcher - hidden when collapsed */}
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <TeamSwitcher />
-              </div>
-            )}
+            {/* Team Switcher - hidden on hover when collapsed (replaced by expand btn) */}
+            <div className={cn(
+              "min-w-0",
+              collapsed 
+                ? "flex-none lg:group-hover/sidebar:hidden" 
+                : "flex-1"
+            )}>
+              <TeamSwitcher collapsed={collapsed} />
+            </div>
             
             {/* Collapse Toggle Button
-                - Right side of header
-                - Hidden by default, shows on hover (zero width when hidden)
-                - Always visible when collapsed */}
+                - Shows on hover ANYWHERE on sidebar
+                - Same size as team switcher (h-10 w-10) for seamless swap
+                - hidden lg:hidden lg:group-hover/sidebar:flex pattern */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setCollapsed(!collapsed)}
-                  className={cn(
-                    "h-8 w-8 cursor-pointer shrink-0",
-                    collapsed 
-                      ? "flex" 
-                      : "hidden lg:hidden lg:group-hover/header:flex"
-                  )}
+                  className="h-10 w-10 cursor-pointer shrink-0 hidden lg:hidden lg:group-hover/sidebar:flex"
                 >
                   {collapsed ? (
                     <PanelLeftOpen className="h-4 w-4" />
@@ -224,7 +224,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           {/* =================================================================
               FOOTER - User Dropdown
               - NO Tooltip wrapper (breaks dropdown click)
-              - Shows user info in dropdown when collapsed
+              - Shows user info in dropdown header when collapsed
               ================================================================= */}
           <div className={cn(
             "border-t border-sidebar-border",

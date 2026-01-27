@@ -18,7 +18,7 @@ Use this skill when:
 ┌─────────────────────────────────────────────────┐
 │ Sidebar (w-64 expanded / w-16 collapsed)        │
 │ ┌─────────────────────────────────────────────┐ │
-│ │ Header: [TeamSwitcher] [CollapseBtn*]       │ │  * appears on hover
+│ │ Header: [TeamSwitcher] or [ExpandBtn]*      │ │  * swap on hover
 │ ├─────────────────────────────────────────────┤ │
 │ │ Navigation (ScrollArea)                     │ │
 │ │   [Icon] Label  (expanded)                  │ │
@@ -37,24 +37,35 @@ Use this skill when:
    - Transition: `transition-all duration-200`
 
 2. **Collapse Toggle Button**
-   - Position: Header row, RIGHT of team switcher
-   - Visibility: Hidden by default, shows on hover (using `group/header`)
+   - Position: Header row, replaces team switcher on hover when collapsed
+   - Visibility: Hidden by default, shows on hover **anywhere on sidebar** (using `group/sidebar`)
    - Icons: `PanelLeftOpen` (expand) / `PanelLeftClose` (collapse)
-   - Zero width when hidden (use `hidden`/`flex`, NOT opacity)
+   - Size: `h-10 w-10` (matches team switcher for no layout shift)
    - Tooltip: "Open sidebar" / "Close sidebar"
 
-3. **Navigation Items (Collapsed)**
+3. **Team Switcher (Collapsed)**
+   - Shows icon-only avatar (`h-10 w-10 p-0`)
+   - Hidden on hover, replaced by expand button
+   - NO tooltip wrapper (breaks popover click) - popover itself shows team list
+   - Popover position: `side="right"`
+
+4. **Show Only One at a Time (Collapsed)**
+   - Team switcher: `lg:group-hover/sidebar:hidden`
+   - Expand button: `hidden lg:hidden lg:group-hover/sidebar:flex`
+   - This ensures smooth swap without both showing
+
+5. **Navigation Items (Collapsed)**
    - Icon only, centered: `justify-center p-3`
    - Tooltip on right side showing item name
    - Active state still visible via background
 
-4. **User Footer (Collapsed)**
+6. **User Footer (Collapsed)**
    - Avatar only, centered
    - NO tooltip wrapper (conflicts with dropdown)
    - Dropdown shows user info header when collapsed
    - Dropdown position: `side="right" align="start"`
 
-5. **Mobile Behavior**
+7. **Mobile Behavior**
    - Separate `sidebarOpen` state for mobile slide-in
    - Backdrop overlay with blur
    - X close button in header (mobile only)
@@ -62,26 +73,34 @@ Use this skill when:
 
 ### Critical Implementation Notes
 
-**DO NOT nest Tooltip inside DropdownMenuTrigger** - causes click handling issues. Instead:
-- Remove tooltip for dropdown triggers when collapsed
-- Add user info to dropdown content when collapsed
+**DO NOT nest Tooltip inside DropdownMenuTrigger or PopoverTrigger** - causes click handling issues. Instead:
+- Remove tooltip for dropdown/popover triggers when collapsed
+- Add info to dropdown/popover content when collapsed
 
-**Hover-reveal button pattern:**
+**Hover-reveal with swap pattern (collapsed):**
 ```tsx
-// Parent needs group class
-<div className="group/header">
-  {/* Button hidden by default, shows on group hover */}
-  <Button className="hidden lg:hidden lg:group-hover/header:flex" />
-</div>
+// Sidebar needs group class
+<aside className="group/sidebar">
+  {/* Team switcher - hides on sidebar hover when collapsed */}
+  <div className={cn(
+    collapsed ? "lg:group-hover/sidebar:hidden" : "flex-1"
+  )}>
+    <TeamSwitcher collapsed={collapsed} />
+  </div>
+  
+  {/* Expand button - shows on sidebar hover */}
+  <Button className="hidden lg:hidden lg:group-hover/sidebar:flex h-10 w-10" />
+</aside>
 ```
 
-**Tooltip positioning:**
-- All collapsed tooltips: `side="right"`
-- Zero delay (per user rules)
+**Size matching is critical:**
+- Team switcher collapsed: `h-10 w-10`
+- Expand button: `h-10 w-10`
+- No layout shift on hover swap
 
 ## Dependencies
 
-- shadcn/ui components: `Button`, `Avatar`, `DropdownMenu`, `ScrollArea`, `Tooltip`
+- shadcn/ui components: `Button`, `Avatar`, `DropdownMenu`, `Popover`, `ScrollArea`, `Tooltip`
 - lucide-react icons: `PanelLeftOpen`, `PanelLeftClose`, `Menu`, `X`, `ChevronDown`
 - Tailwind CSS with `cn()` utility
 
@@ -112,45 +131,43 @@ const [sidebarOpen, setSidebarOpen] = useState(false);  // mobile
 const [collapsed, setCollapsed] = useState(false);       // desktop collapse
 ```
 
-### Step 3: Sidebar Container
+### Step 3: Sidebar Container with Group
 
 ```tsx
 <aside
   className={cn(
-    "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-200 lg:relative lg:translate-x-0",
+    "group/sidebar fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-200 lg:relative lg:translate-x-0",
     collapsed ? "w-16" : "w-64",
     sidebarOpen ? "translate-x-0" : "-translate-x-full"
   )}
 >
 ```
 
-### Step 4: Header with Hover-Reveal Toggle
+### Step 4: Header with Hover-Swap Toggle
 
 ```tsx
 <div className={cn(
-  "group/header flex items-center border-b border-sidebar-border",
+  "flex items-center border-b border-sidebar-border",
   collapsed ? "p-2 justify-center" : "p-3 gap-2"
 )}>
-  {/* Team Switcher - only when expanded */}
-  {!collapsed && (
-    <div className="flex-1 min-w-0">
-      <TeamSwitcher />
-    </div>
-  )}
+  {/* Team Switcher - hidden on hover when collapsed (replaced by expand btn) */}
+  <div className={cn(
+    "min-w-0",
+    collapsed 
+      ? "flex-none lg:group-hover/sidebar:hidden" 
+      : "flex-1"
+  )}>
+    <TeamSwitcher collapsed={collapsed} />
+  </div>
   
-  {/* Collapse Toggle - shows on hover, zero width when hidden */}
+  {/* Collapse Toggle - shows on hover anywhere on sidebar */}
   <Tooltip>
     <TooltipTrigger asChild>
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setCollapsed(!collapsed)}
-        className={cn(
-          "h-8 w-8 cursor-pointer shrink-0",
-          collapsed 
-            ? "flex" 
-            : "hidden lg:hidden lg:group-hover/header:flex"
-        )}
+        className="h-10 w-10 cursor-pointer shrink-0 hidden lg:hidden lg:group-hover/sidebar:flex"
       >
         {collapsed ? (
           <PanelLeftOpen className="h-4 w-4" />
@@ -176,7 +193,49 @@ const [collapsed, setCollapsed] = useState(false);       // desktop collapse
 </div>
 ```
 
-### Step 5: Navigation with Tooltips
+### Step 5: Team Switcher Component (NO Tooltip wrapper)
+
+```tsx
+// team-switcher.tsx
+interface TeamSwitcherProps {
+  collapsed?: boolean;
+}
+
+export function TeamSwitcher({ collapsed = false }: TeamSwitcherProps) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "cursor-pointer",
+            collapsed ? "h-10 w-10 p-0" : "w-full justify-between"
+          )}
+        >
+          {collapsed ? (
+            <Avatar className="h-6 w-6">
+              {/* Avatar content */}
+            </Avatar>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 truncate">
+                <Avatar className="h-5 w-5 shrink-0">{/* ... */}</Avatar>
+                <span className="truncate">{teamName}</span>
+              </div>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side={collapsed ? "right" : "bottom"}>
+        {/* Team list */}
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
+
+### Step 6: Navigation with Tooltips
 
 ```tsx
 <ScrollArea className={cn("flex-1 py-4", collapsed ? "px-2" : "px-3")}>
@@ -219,7 +278,7 @@ const [collapsed, setCollapsed] = useState(false);       // desktop collapse
 </ScrollArea>
 ```
 
-### Step 6: User Footer (NO Tooltip wrapper)
+### Step 7: User Footer (NO Tooltip wrapper)
 
 ```tsx
 <div className={cn(
@@ -270,7 +329,7 @@ const [collapsed, setCollapsed] = useState(false);       // desktop collapse
 </div>
 ```
 
-### Step 7: Mobile Backdrop & Header
+### Step 8: Mobile Backdrop & Header
 
 ```tsx
 {/* Mobile backdrop */}
@@ -292,7 +351,7 @@ const [collapsed, setCollapsed] = useState(false);       // desktop collapse
 
 ## Reference Implementation
 
-See `assets/components/dashboard-shell.tsx` for complete working example.
+See `assets/components/dashboard-shell.tsx` and `assets/components/team-switcher.tsx` for complete working examples.
 
 ## CSS Variables (globals.css)
 
@@ -320,10 +379,12 @@ Ensure these sidebar CSS variables are defined:
 
 - [ ] Two states: `sidebarOpen` (mobile) and `collapsed` (desktop)
 - [ ] Width transitions smoothly between w-64 and w-16
-- [ ] Collapse button in header, right side, hover-reveal
-- [ ] Collapse button takes zero width when hidden
+- [ ] `group/sidebar` on aside element for hover detection
+- [ ] Collapse button shows on hover **anywhere on sidebar**
+- [ ] Team switcher and collapse button are SAME SIZE (h-10 w-10)
+- [ ] Only ONE shows at a time when collapsed (swap on hover)
+- [ ] NO Tooltip wrapper on Popover/Dropdown triggers
 - [ ] Navigation tooltips on right when collapsed
-- [ ] User dropdown works when collapsed (no tooltip wrapper!)
 - [ ] User info shown in dropdown header when collapsed
 - [ ] Mobile has backdrop + slide animation
 - [ ] Mobile header with hamburger menu
