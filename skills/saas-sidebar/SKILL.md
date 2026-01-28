@@ -329,7 +329,7 @@ export function TeamSwitcher({ collapsed = false }: TeamSwitcherProps) {
 </div>
 ```
 
-### Step 8: Mobile Backdrop & Header
+### Step 8: Mobile Backdrop & Main Content
 
 ```tsx
 {/* Mobile backdrop */}
@@ -340,13 +340,16 @@ export function TeamSwitcher({ collapsed = false }: TeamSwitcherProps) {
   />
 )}
 
-{/* Mobile header in main content */}
-<header className="flex h-14 items-center gap-4 border-b px-4 lg:hidden">
-  <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-    <Menu className="h-5 w-5" />
-  </Button>
-  <span className="font-semibold">App Name</span>
-</header>
+{/* Main content - min-h-0 prevents scroll overflow */}
+<div className="flex-1 flex flex-col min-w-0 min-h-0">
+  <header className="flex h-14 items-center gap-4 border-b px-4 lg:hidden">
+    <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+      <Menu className="h-5 w-5" />
+    </Button>
+    <span className="font-semibold">App Name</span>
+  </header>
+  <main className="flex-1 overflow-auto">{children}</main>
+</div>
 ```
 
 ## Reference Implementation
