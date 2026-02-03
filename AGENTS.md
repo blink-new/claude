@@ -53,7 +53,7 @@ Add rules to your OpenCode config at `~/.config/opencode/opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "$(pwd)/rules/**/RULE.md"
+    "$(pwd)/rules/*.md"
   ]
 }
 ```
