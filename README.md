@@ -33,6 +33,12 @@ Custom instructions for AI agents:
 
 - `always-agents-memory` — Always update AGENTS.md when user asks to remember something
 
+### MCP Servers
+
+Model Context Protocol servers for extending capabilities:
+
+- `context7` — Up-to-date code documentation and examples (see `mcp/context7/README.md`)
+
 ## Install
 
 ```bash
@@ -79,3 +85,26 @@ To use these rules with OpenCode, add them to your global OpenCode config at `~/
 Skills are automatically discovered from `~/.config/opencode/skills/` after symlinking as shown above.
 
 Each rule is structured as `/rules/rule-name.md` where the rule name uses kebab-case.
+
+### MCP Servers Configuration
+
+To configure MCP servers like Context7, add to your OpenCode config:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["~/.agents/rules/*.md"],
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+See `mcp/context7/README.md` for detailed MCP setup instructions.
