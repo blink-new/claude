@@ -27,6 +27,12 @@ Reusable patterns and templates:
 - `railway-storage` — S3-compatible storage setup
 - `nextjs-16-proxy` — Next.js 16 proxy convention
 
+### Rules
+
+Custom instructions for AI agents:
+
+- `always-agents-memory` — Always update AGENTS.md when user asks to remember something
+
 ## Install
 
 ```bash
@@ -49,3 +55,18 @@ mkdir -p ~/.agents/agents ~/.agents/skills
 cp -R ./agents/. ~/.agents/agents/
 rsync -a --ignore-existing ./skills/ ~/.agents/skills/
 ```
+
+## OpenCode Configuration
+
+To use these rules with OpenCode, add them to your global OpenCode config at `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "$(pwd)/rules/**/RULE.md"
+  ]
+}
+```
+
+This will load all rules from the `rules/` directory. Each rule is structured as `/rules/rule-name/RULE.md` where the rule name uses kebab-case.
