@@ -39,6 +39,7 @@ Custom instructions for AI agents:
 mkdir -p ~/.agents
 ln -sfn "$(pwd)/agents" ~/.agents/agents
 ln -sfn "$(pwd)/skills" ~/.agents/skills
+ln -sfn "$(pwd)/rules" ~/.agents/rules
 ```
 
 Then symlink `~/.agents` to each agent:
