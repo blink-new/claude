@@ -1,6 +1,7 @@
-# DataFast Analytics Skill
-
-Accelerate adoption of DataFast analytics across any stack by codifying the installation, attribution, event, proxy, and API patterns that drive reliable conversion intelligence.
+---
+name: datafast
+description: Accelerate adoption of DataFast analytics across any stack by codifying the installation, attribution, event, proxy, and API patterns that drive reliable conversion intelligence
+---
 
 ## When to Use This Skill
 

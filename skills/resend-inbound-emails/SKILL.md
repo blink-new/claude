@@ -1,6 +1,7 @@
-# Resend Inbound Emails Skill
-
-Set up two-way email communication with send and receive capabilities using Resend API. Includes custom domain management, AI-powered personalization with `{{ tags }}`, email threading, and a rich inbox UI.
+---
+name: resend-inbound-emails
+description: Set up two-way email communication with send and receive capabilities using Resend API. Includes custom domain management, AI-powered personalization, email threading, and a rich inbox UI
+---
 
 ## When to Use This Skill
 

@@ -1,6 +1,7 @@
-# Kanban Drag & Drop Skill
-
-Build world-class kanban board drag-and-drop with @dnd-kit. Linear-quality UX with proper collision detection, smooth animations, and visual feedback.
+---
+name: kanban-dnd
+description: Build world-class kanban board drag-and-drop with @dnd-kit. Linear-quality UX with proper collision detection, smooth animations, and visual feedback
+---
 
 ## When to Use This Skill
 

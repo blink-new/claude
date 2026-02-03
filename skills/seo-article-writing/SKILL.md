@@ -1,6 +1,7 @@
-# SEO Article Writing Skill
-
-A comprehensive workflow for creating high-ranking SEO blog articles with keyword research, competitive analysis, AI-generated unique images, and optimized content structure.
+---
+name: seo-article-writing
+description: A comprehensive workflow for creating high-ranking SEO blog articles with keyword research, competitive analysis, AI-generated unique images, and optimized content structure
+---
 
 ## When to Use
 

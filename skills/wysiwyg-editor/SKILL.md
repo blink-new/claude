@@ -1,3 +1,8 @@
+---
+name: wysiwyg-editor
+description: Build production-grade WYSIWYG editors using Tiptap v3 with proper markdown-style formatting, instant rendering, and bullet/numbered list support
+---
+
 # WYSIWYG Rich Text Editor Skill
 
 Build production-grade WYSIWYG editors using Tiptap v3 with proper markdown-style formatting, instant rendering, and bullet/numbered list support.

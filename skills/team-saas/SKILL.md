@@ -1,3 +1,8 @@
+---
+name: team-saas
+description: Build production-grade multi-tenant SaaS applications with team workspaces, member invitation, authentication, and modern UI
+---
+
 # Team SaaS Architecture Skill
 
 Build production-grade multi-tenant SaaS applications with team workspaces, member invitation, authentication, and modern UI. Based on a proven architecture powering real production applications.

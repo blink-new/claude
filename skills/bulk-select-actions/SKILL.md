@@ -1,6 +1,7 @@
-# Bulk Select & Actions Skill
-
-Build world-class table bulk selection with floating action toolbar. Linear/Notion-quality UX with proper checkbox states, smooth animations, and confirmation dialogs.
+---
+name: bulk-select-actions
+description: Build world-class table bulk selection with floating action toolbar. Linear/Notion-quality UX with proper checkbox states, smooth animations, and confirmation dialogs
+---
 
 ## When to Use This Skill
 

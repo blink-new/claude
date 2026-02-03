@@ -1,3 +1,8 @@
+---
+name: saas-sidebar
+description: Build a modern, collapsible sidebar for SaaS dashboards following the ChatGPT/Notion design pattern
+---
+
 # SaaS Collapsible Sidebar
 
 Build a modern, collapsible sidebar for SaaS dashboards following the ChatGPT/Notion design pattern.
