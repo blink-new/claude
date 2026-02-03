@@ -49,6 +49,12 @@ ln -sfn ~/.agents ~/.cursor/agents
 ln -sfn ~/.agents ~/.claude/agents
 ```
 
+For OpenCode skills, symlink to the global config:
+
+```bash
+ln -sfn ~/.agents/skills ~/.config/opencode/skills
+```
+
 ## Or Copy (no symlinks)
 
 ```bash
@@ -65,9 +71,11 @@ To use these rules with OpenCode, add them to your global OpenCode config at `~/
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "$(pwd)/rules/*.md"
+    "~/.agents/rules/*.md"
   ]
 }
 ```
 
-This will load all rules from the `rules/` directory. Each rule is structured as `/rules/rule-name.md` where the rule name uses kebab-case.
+Skills are automatically discovered from `~/.config/opencode/skills/` after symlinking as shown above.
+
+Each rule is structured as `/rules/rule-name.md` where the rule name uses kebab-case.

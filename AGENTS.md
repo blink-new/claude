@@ -43,6 +43,9 @@ ln -sfn "$(pwd)/rules" ~/.agents/rules
 # Link to specific tools
 ln -sfn ~/.agents ~/.cursor/agents
 ln -sfn ~/.agents ~/.claude/agents
+
+# For OpenCode skill discovery
+ln -sfn ~/.agents/skills ~/.config/opencode/skills
 ```
 
 ## For OpenCode
