@@ -64,9 +64,9 @@ To use these rules with OpenCode, add them to your global OpenCode config at `~/
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "$(pwd)/rules/**/RULE.md"
+    "$(pwd)/rules/*.md"
   ]
 }
 ```
 
-This will load all rules from the `rules/` directory. Each rule is structured as `/rules/rule-name/RULE.md` where the rule name uses kebab-case.
+This will load all rules from the `rules/` directory. Each rule is structured as `/rules/rule-name.md` where the rule name uses kebab-case.

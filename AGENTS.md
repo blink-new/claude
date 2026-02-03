@@ -24,9 +24,8 @@ This repository provides a unified collection of specialized agents, reusable sk
 │   ├── saas-sidebar/
 │   │   └── SKILL.md
 │   └── ...
-└── rules/               # Rule definitions (directories with RULE.md)
-    ├── always-agents-memory/
-    │   └── RULE.md
+└── rules/               # Rule definitions (markdown files)
+    ├── always-agents-memory.md
     └── ...
 ```
 
@@ -122,10 +121,10 @@ Rules are custom instructions that apply globally to all AI interactions. They e
 
 ### Rule Format
 
-Each rule is organized by kebab-case name:
+Each rule is a markdown file with kebab-case naming:
 
 ```
-rules/rule-name/RULE.md
+rules/rule-name.md
 ```
 
 Example rule triggers:
@@ -158,17 +157,16 @@ mkdir -p skills/new-skill
 
 ### New Rule
 
-Create directory with `RULE.md`:
+Create markdown file with kebab-case naming:
 ```bash
-mkdir -p rules/new-rule
-# Write RULE.md
+# Write rules/new-rule.md
 ```
 
 ## File Naming Conventions
 
 - **Agents**: `kebab-case.md`
 - **Skills**: `kebab-case/`
-- **Rules**: `kebab-case/`
+- **Rules**: `kebab-case.md`
 
 ## Version Control
 
