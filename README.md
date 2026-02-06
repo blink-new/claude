@@ -41,18 +41,18 @@ Model Context Protocol servers for extending capabilities:
 
 ## Install
 
-```bash
-mkdir -p ~/.agents
-ln -sfn "$(pwd)/agents" ~/.agents/agents
-ln -sfn "$(pwd)/skills" ~/.agents/skills
-ln -sfn "$(pwd)/rules" ~/.agents/rules
-```
-
-Then symlink `~/.agents` to each agent:
+Symlink agents and skills directly into each tool's config directory:
 
 ```bash
-ln -sfn ~/.agents ~/.cursor/agents
-ln -sfn ~/.agents ~/.claude/agents
+# Cursor
+mkdir -p ~/.cursor/agents ~/.cursor/skills
+ln -sfn "$(pwd)"/agents/*.md ~/.cursor/agents/
+ln -sfn "$(pwd)"/skills/* ~/.cursor/skills/
+
+# Claude Code / OpenCode
+mkdir -p ~/.claude/agents ~/.claude/skills
+ln -sfn "$(pwd)"/agents/*.md ~/.claude/agents/
+ln -sfn "$(pwd)"/skills/* ~/.claude/skills/
 ```
 
 For OpenCode skills, symlink to the global config:
@@ -64,9 +64,15 @@ ln -sfn ~/.agents/skills ~/.config/opencode/skills
 ## Or Copy (no symlinks)
 
 ```bash
-mkdir -p ~/.agents/agents ~/.agents/skills
-cp -R ./agents/. ~/.agents/agents/
-rsync -a --ignore-existing ./skills/ ~/.agents/skills/
+# Cursor
+mkdir -p ~/.cursor/agents ~/.cursor/skills
+cp -R ./agents/. ~/.cursor/agents/
+cp -R ./skills/. ~/.cursor/skills/
+
+# Claude Code / OpenCode
+mkdir -p ~/.claude/agents ~/.claude/skills
+cp -R ./agents/. ~/.claude/agents/
+cp -R ./skills/. ~/.claude/skills/
 ```
 
 ## OpenCode Configuration
