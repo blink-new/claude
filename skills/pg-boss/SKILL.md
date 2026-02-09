@@ -10,17 +10,12 @@ PG Boss is a PostgreSQL-based job queue for Node.js. It stores jobs in the datab
 ## Quick Setup
 
 ```typescript
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 
 const boss = new PgBoss({
   connectionString: process.env.DATABASE_URL,
-  schema: 'pgboss',           // Separate schema for PG Boss tables
-  retryLimit: 3,              // Retry failed jobs 3 times
-  retryDelay: 60,             // Wait 60s between retries
-  expireInSeconds: 3600,      // Jobs expire after 1 hour
-  archiveCompletedAfterSeconds: 43200,  // Archive after 12 hours
-  deleteAfterDays: 7,         // Delete archived after 7 days
-  monitorStateIntervalSeconds: 30,      // Monitor health every 30s
+  schema: 'pgboss',
+  monitorIntervalSeconds: 30,
 });
 
 await boss.start();
@@ -31,6 +26,14 @@ await boss.start();
 ### 1. Scheduled Jobs (Cron-like)
 
 ```typescript
+// v12: queue must exist before schedule/work
+await boss.createQueue('my-job', {
+  retryLimit: 3,
+  retryDelay: 60,
+  expireInSeconds: 600,
+  deleteAfterSeconds: 7 * 24 * 60 * 60,
+});
+
 // Schedule job to run every minute
 await boss.schedule('my-job', '* * * * *', {}, {
   tz: 'UTC',
@@ -38,7 +41,7 @@ await boss.schedule('my-job', '* * * * *', {}, {
 });
 
 // Register handler
-await boss.work('my-job', async (jobs) => {
+await boss.work('my-job', { pollingIntervalSeconds: 10 }, async (jobs) => {
   for (const job of jobs) {
     // Process job
   }
@@ -183,19 +186,24 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 |-------|-------|-----|
 | Jobs not running | PG Boss not started | Check health endpoint, verify DATABASE_URL |
 | Duplicate jobs | Missing `singletonKey` | Add singletonKey to `schedule()` call |
+| Queue not found | `schedule()` called before `createQueue()` | Call `boss.createQueue(name)` first |
 | Jobs stuck in 'created' | No worker registered | Call `boss.work()` for the queue |
 | Connection errors | Database URL wrong/expired | Check DATABASE_URL, SSL settings |
 | Jobs not persisting | Wrong schema | Verify `schema: 'pgboss'` option |
+| Worker over-polling | Wrong option name | Use `pollingIntervalSeconds` (not `newJobCheckIntervalSeconds`) |
+| Next.js build fails (`stream/net/tls`) | instrumentation bundles server-only deps | Use `/* webpackIgnore: true */` on instrumentation dynamic imports |
 
 ## Best Practices
 
 1. **Always use singletonKey** for scheduled jobs to prevent duplicates on restart
 2. **Create queues explicitly** in PG Boss v10+: `await boss.createQueue('my-job')`
 3. **Handle the 'stopped' event** to detect unexpected shutdowns
-4. **Use a watchdog** to auto-recover from crashes
+4. **Use a watchdog** to auto-recover from crashes (clear old interval before starting a new one)
 5. **Return 503 in health check** when PG Boss is dead (triggers container restart)
 6. **Log job errors** but don't swallow them - let PG Boss retry
 7. **Use separate workers** for different job types (rollover, email, etc.)
+8. **Graceful shutdown**: call `boss.stop({ graceful: true, timeout: 30000 })` on SIGTERM/SIGINT
+9. **Next.js instrumentation**: load server-only job modules with `import(/* webpackIgnore: true */ ...)`
 
 ## File Structure Example
 
