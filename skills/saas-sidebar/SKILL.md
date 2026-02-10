@@ -5,365 +5,755 @@ description: Build a modern, collapsible sidebar for SaaS dashboards following t
 
 # SaaS Collapsible Sidebar
 
-Build a modern, collapsible sidebar for SaaS dashboards following the ChatGPT/Notion design pattern.
+Build a polished, collapsible sidebar using the **shadcn/ui Sidebar component system**. Covers every detail: icon-mode centering, hover-swap expand button, auto-tooltips, keyboard shortcuts, mobile Sheet, state persistence, loading skeletons.
 
 ## When to Use
 
-Use this skill when:
-- Building a SaaS dashboard with sidebar navigation
-- User requests collapsible/minimizable sidebar
-- Need icon-only sidebar mode with tooltips
-- Building responsive dashboard layouts
+- SaaS dashboard with sidebar navigation
+- Collapsible/minimizable sidebar (icon-only mode)
+- Responsive layout with mobile sheet overlay
 
-## Design Decisions
+## Quick Start
 
-### Layout Structure
-
-```
-┌─────────────────────────────────────────────────┐
-│ Sidebar (w-64 expanded / w-16 collapsed)        │
-│ ┌─────────────────────────────────────────────┐ │
-│ │ Header: [TeamSwitcher] or [ExpandBtn]*      │ │  * swap on hover
-│ ├─────────────────────────────────────────────┤ │
-│ │ Navigation (ScrollArea)                     │ │
-│ │   [Icon] Label  (expanded)                  │ │
-│ │   [Icon]        (collapsed + tooltip)       │ │
-│ ├─────────────────────────────────────────────┤ │
-│ │ Footer: User Avatar + Dropdown              │ │
-│ └─────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
+```bash
+npx shadcn@latest add sidebar tooltip avatar popover collapsible separator skeleton sheet
 ```
 
-### Key Design Patterns
+This generates `components/ui/sidebar.tsx` (~770 lines) with ALL sidebar primitives. Do NOT build a custom `<aside>`.
 
-1. **Width Dimensions**
-   - Expanded: `w-64` (256px)
-   - Collapsed: `w-16` (64px)
-   - Transition: `transition-all duration-200`
+---
 
-2. **Collapse Toggle Button**
-   - Position: Header row, replaces team switcher on hover when collapsed
-   - Visibility: Hidden by default, shows on hover **anywhere on sidebar** (using `group/sidebar`)
-   - Icons: `PanelLeftOpen` (expand) / `PanelLeftClose` (collapse)
-   - Size: `h-10 w-10` (matches team switcher for no layout shift)
-   - Tooltip: "Open sidebar" / "Close sidebar"
+## Architecture
 
-3. **Team Switcher (Collapsed)**
-   - Shows icon-only avatar (`h-10 w-10 p-0`)
-   - Hidden on hover, replaced by expand button
-   - NO tooltip wrapper (breaks popover click) - popover itself shows team list
-   - Popover position: `side="right"`
+### How the Layout Works (Dual-Div Trick)
 
-4. **Show Only One at a Time (Collapsed)**
-   - Team switcher: `lg:group-hover/sidebar:hidden`
-   - Expand button: `hidden lg:hidden lg:group-hover/sidebar:flex`
-   - This ensures smooth swap without both showing
+The `Sidebar` component renders **two divs** on desktop:
 
-5. **Navigation Items (Collapsed)**
-   - Icon only, centered: `justify-center p-3`
-   - Tooltip on right side showing item name
-   - Active state still visible via background
-
-6. **User Footer (Collapsed)**
-   - Avatar only, centered
-   - NO tooltip wrapper (conflicts with dropdown)
-   - Dropdown shows user info header when collapsed
-   - Dropdown position: `side="right" align="start"`
-
-7. **Mobile Behavior**
-   - Separate `sidebarOpen` state for mobile slide-in
-   - Backdrop overlay with blur
-   - X close button in header (mobile only)
-   - Menu hamburger in main content header
-
-### Critical Implementation Notes
-
-**DO NOT nest Tooltip inside DropdownMenuTrigger or PopoverTrigger** - causes click handling issues. Instead:
-- Remove tooltip for dropdown/popover triggers when collapsed
-- Add info to dropdown/popover content when collapsed
-
-**Hover-reveal with swap pattern (collapsed):**
-```tsx
-// Sidebar needs group class
-<aside className="group/sidebar">
-  {/* Team switcher - hides on sidebar hover when collapsed */}
-  <div className={cn(
-    collapsed ? "lg:group-hover/sidebar:hidden" : "flex-1"
-  )}>
-    <TeamSwitcher collapsed={collapsed} />
-  </div>
-  
-  {/* Expand button - shows on sidebar hover */}
-  <Button className="hidden lg:hidden lg:group-hover/sidebar:flex h-10 w-10" />
-</aside>
+```
+┌──────────────────────────────────────────────┐
+│ SidebarProvider (flex container, min-h-svh)   │
+│                                              │
+│  ┌─ Sidebar outer div ──────────────────┐    │
+│  │  [Spacer div]     ← reserves width   │    │
+│  │   relative w-[--sidebar-width]        │    │
+│  │   (pushes SidebarInset right)         │    │
+│  │                                       │    │
+│  │  [Fixed div]      ← actual sidebar   │    │
+│  │   fixed inset-y-0 z-10               │    │
+│  │   w-[--sidebar-width]                 │    │
+│  │   (contains children)                 │    │
+│  └───────────────────────────────────────┘    │
+│                                              │
+│  ┌─ SidebarInset (main) ────────────────┐    │
+│  │  flex-1 overflow-y-auto h-dvh         │    │
+│  └───────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘
 ```
 
-**Size matching is critical:**
-- Team switcher collapsed: `h-10 w-10`
-- Expand button: `h-10 w-10`
-- No layout shift on hover swap
+Both divs transition width together: `transition-[width] duration-200 ease-linear`. The spacer ensures the main content never overlaps the sidebar.
 
-## Dependencies
+### Width Constants (CSS Variables)
 
-- shadcn/ui components: `Button`, `Avatar`, `DropdownMenu`, `Popover`, `ScrollArea`, `Tooltip`
-- lucide-react icons: `PanelLeftOpen`, `PanelLeftClose`, `Menu`, `X`, `ChevronDown`
-- Tailwind CSS with `cn()` utility
+Set by `SidebarProvider` as inline CSS custom properties:
 
-## Implementation
+| State     | Variable               | Value           |
+|-----------|------------------------|-----------------|
+| Expanded  | `--sidebar-width`      | `16rem` (256px) |
+| Collapsed | `--sidebar-width-icon` | `3rem` (48px)   |
+| Mobile    | `--sidebar-width`      | `18rem` (288px) |
 
-### Step 1: Add Required Imports
+### State Context
 
-```tsx
-import {
-  PanelLeftOpen,
-  PanelLeftClose,
-  Menu,
-  X,
-  ChevronDown,
-} from "lucide-react";
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-```
-
-### Step 2: Add State
-
-```tsx
-const [sidebarOpen, setSidebarOpen] = useState(false);  // mobile
-const [collapsed, setCollapsed] = useState(false);       // desktop collapse
-```
-
-### Step 3: Sidebar Container with Group
-
-```tsx
-<aside
-  className={cn(
-    "group/sidebar fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-200 lg:relative lg:translate-x-0",
-    collapsed ? "w-16" : "w-64",
-    sidebarOpen ? "translate-x-0" : "-translate-x-full"
-  )}
->
-```
-
-### Step 4: Header with Hover-Swap Toggle
-
-```tsx
-<div className={cn(
-  "flex items-center border-b border-sidebar-border",
-  collapsed ? "p-2 justify-center" : "p-3 gap-2"
-)}>
-  {/* Team Switcher - hidden on hover when collapsed (replaced by expand btn) */}
-  <div className={cn(
-    "min-w-0",
-    collapsed 
-      ? "flex-none lg:group-hover/sidebar:hidden" 
-      : "flex-1"
-  )}>
-    <TeamSwitcher collapsed={collapsed} />
-  </div>
-  
-  {/* Collapse Toggle - shows on hover anywhere on sidebar */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setCollapsed(!collapsed)}
-        className="h-10 w-10 cursor-pointer shrink-0 hidden lg:hidden lg:group-hover/sidebar:flex"
-      >
-        {collapsed ? (
-          <PanelLeftOpen className="h-4 w-4" />
-        ) : (
-          <PanelLeftClose className="h-4 w-4" />
-        )}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent side="right">
-      {collapsed ? "Open sidebar" : "Close sidebar"}
-    </TooltipContent>
-  </Tooltip>
-  
-  {/* Mobile close button */}
-  <Button
-    variant="ghost"
-    size="icon"
-    className="lg:hidden shrink-0"
-    onClick={() => setSidebarOpen(false)}
-  >
-    <X className="h-5 w-5" />
-  </Button>
-</div>
-```
-
-### Step 5: Team Switcher Component (NO Tooltip wrapper)
-
-```tsx
-// team-switcher.tsx
-interface TeamSwitcherProps {
-  collapsed?: boolean;
+```typescript
+type SidebarContextProps = {
+  state: "expanded" | "collapsed"  // derived from open
+  open: boolean                     // true = expanded
+  setOpen: (open: boolean) => void
+  openMobile: boolean               // separate mobile Sheet state
+  setOpenMobile: (open: boolean) => void
+  isMobile: boolean                 // < 768px
+  toggleSidebar: () => void         // smart: routes to mobile or desktop
 }
+```
 
-export function TeamSwitcher({ collapsed = false }: TeamSwitcherProps) {
+Access anywhere via `useSidebar()`. Never pass `collapsed` as prop.
+
+### Data Attribute Styling (No Prop Drilling)
+
+The outer `Sidebar` div sets data attributes that children react to via Tailwind group selectors:
+
+```html
+<div data-state="collapsed" data-collapsible="icon" data-variant="sidebar" data-side="left">
+```
+
+Key selectors and what they do:
+
+```css
+/* Force menu buttons to 32×32px centered squares when collapsed */
+group-data-[collapsible=icon]:!size-8
+group-data-[collapsible=icon]:!p-2
+
+/* Hide text labels smoothly (negative margin pulls up, opacity fades) */
+group-data-[collapsible=icon]:-mt-8
+group-data-[collapsible=icon]:opacity-0
+
+/* Hard-hide sub-menus, group actions, badges when collapsed */
+group-data-[collapsible=icon]:hidden
+
+/* Prevent horizontal scrollbar in 48px-wide collapsed column */
+group-data-[collapsible=icon]:overflow-hidden
+```
+
+### Peer Coordination (Sidebar ↔ Main Content)
+
+The sidebar outer div has `group peer`. `SidebarInset` uses peer selectors:
+
+```tsx
+// SidebarInset reacts to sidebar state for inset variant
+"md:peer-data-[variant=inset]:m-2"
+"md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2"
+```
+
+---
+
+## The Centering Magic (How Icons Align Perfectly)
+
+This is the most important detail. `SidebarMenuButton` uses CVA variants:
+
+```typescript
+const sidebarMenuButtonVariants = cva(
+  // Base: flex row, gap-2, overflow-hidden, rounded-md, p-2
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm " +
+  // Auto-truncate the last span (label text)
+  "[&>span:last-child]:truncate " +
+  // Icons: always 16×16, never shrink
+  "[&>svg]:size-4 [&>svg]:shrink-0 " +
+  // COLLAPSED: force to 32×32 square with centered icon
+  "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 " +
+  // Transitions on width, height, padding (not all)
+  "transition-[width,height,padding] " +
+  // Active state
+  "data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium",
+  {
+    variants: {
+      size: {
+        default: "h-8 text-sm",                                    // 32px — nav items
+        sm: "h-7 text-xs",                                         // 28px — compact
+        lg: "h-12 text-sm group-data-[collapsible=icon]:!p-0",    // 48px — header (workspace switcher)
+      },
+    },
+  }
+)
+```
+
+**Why everything centers when collapsed:**
+- Container is `3rem` (48px) wide with `p-2` (8px each side) = 32px usable
+- Button forced to `!size-8` (32px) with `!p-2` (8px padding) = icon at center
+- `overflow-hidden` clips any text that hasn't faded yet
+- Icons have `[&>svg]:size-4 [&>svg]:shrink-0` = always 16×16, never compressed
+
+**Size `"lg"` for header:**
+- `h-12` (48px) gives room for two-line text (name + subtitle)
+- `group-data-[collapsible=icon]:!p-0` removes padding so the h-7 w-7 avatar fits cleanly
+
+### Built-in Tooltip System
+
+`SidebarMenuButton` has a `tooltip` prop. NO manual wrapping needed:
+
+```tsx
+<SidebarMenuButton asChild isActive={isActive} tooltip="Home">
+  <Link href="/"><Home className="h-4 w-4" /><span>Home</span></Link>
+</SidebarMenuButton>
+```
+
+Internally, it wraps the button in `<Tooltip>` with auto-visibility:
+
+```tsx
+<TooltipContent
+  side="right"
+  align="center"
+  hidden={state !== "collapsed" || isMobile}  // only show when collapsed + desktop
+/>
+```
+
+`TooltipProvider delayDuration={0}` is set at the `SidebarProvider` level = instant tooltips.
+
+### The `asChild` / Slot Pattern
+
+Every component supports `asChild` (Radix Slot). When true, it merges its props into the child element instead of rendering a wrapper. This is why this works:
+
+```tsx
+// SidebarMenuButton renders as <Link> not <button><Link>
+<SidebarMenuButton asChild tooltip="Home">
+  <Link href="/">...</Link>
+</SidebarMenuButton>
+```
+
+---
+
+## The Expand/Collapse Pattern
+
+### How It Works
+
+When collapsed, hovering **anywhere on the sidebar** swaps the header avatar for an expand button:
+
+```
+Collapsed (idle):    [OrgAvatar]                    ← icon only, 7×7
+Collapsed (hover):   [ExpandBtn]                    ← replaces avatar on sidebar hover
+Expanded:            [OrgSwitcher ——— CollapseBtn]  ← full row
+```
+
+### Implementation
+
+```tsx
+<Sidebar collapsible="icon" className="border-r group/sidebar">
+  <SidebarHeader className="pb-0">
+    <SidebarMenu>
+      <SidebarMenuItem className="flex items-center gap-1">
+        <ExpandButton />           {/* hidden → shows on sidebar hover */}
+        <OrgSwitcher />            {/* avatar hides on sidebar hover when collapsed */}
+        <CollapseToggle />         {/* early-returns null when collapsed */}
+      </SidebarMenuItem>
+    </SidebarMenu>
+  </SidebarHeader>
+```
+
+### ExpandButton
+
+```tsx
+function ExpandButton() {
+  const { toggleSidebar, state } = useSidebar()
+  if (state !== 'collapsed') return null
+
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "cursor-pointer",
-            collapsed ? "h-10 w-10 p-0" : "w-full justify-between"
-          )}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleSidebar() }}
+          className="hidden group-hover/sidebar:flex items-center justify-center h-7 w-7 rounded-md bg-accent text-foreground cursor-pointer hover:bg-accent/80 transition-colors shrink-0"
         >
-          {collapsed ? (
-            <Avatar className="h-6 w-6">
-              {/* Avatar content */}
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" align="center">Expand sidebar</TooltipContent>
+    </Tooltip>
+  )
+}
+```
+
+Key classes:
+- `hidden group-hover/sidebar:flex` — invisible by default, appears when sidebar hovered
+- `h-7 w-7` — matches the org avatar exactly (zero layout shift)
+- `e.stopPropagation()` — prevents the click from reaching the PopoverTrigger behind it
+
+### CollapseToggle
+
+```tsx
+function CollapseToggle() {
+  const { toggleSidebar, state } = useSidebar()
+  if (state !== 'expanded') return null
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={toggleSidebar}
+          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+        >
+          <PanelLeftOpen className="h-4 w-4 rotate-180" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">Close sidebar</TooltipContent>
+    </Tooltip>
+  )
+}
+```
+
+Key: same `PanelLeftOpen` icon with `rotate-180` — not a separate `PanelLeftClose` icon.
+
+### Org/Team Avatar (Hides on Hover When Collapsed)
+
+```tsx
+<SidebarMenuButton size="lg" className={cn("w-full cursor-pointer", collapsed && "justify-center")}>
+  <div className={cn(
+    "flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0",
+    collapsed && "group-hover/sidebar:hidden"  // ← KEY: hides when sidebar hovered
+  )}>
+    {initial}
+  </div>
+  {!collapsed && (
+    <>
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-sm font-semibold truncate leading-tight">{name}</p>
+        <p className="text-[10px] text-muted-foreground leading-tight">{subtitle}</p>
+      </div>
+      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    </>
+  )}
+</SidebarMenuButton>
+```
+
+Note: `leading-tight` on both lines keeps them compact within the `h-12` (size="lg") button.
+
+---
+
+## Navigation Items
+
+### Standard Nav Item
+
+```tsx
+function NavItem({ href, label, icon: Icon, badge, onClick }: {
+  href?: string; label: string; icon: ComponentType<{ className?: string }>
+  badge?: string; onClick?: () => void
+}) {
+  const pathname = usePathname()
+  const isActive = href ? pathname === href : false
+
+  const content = (
+    <>
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+      {badge && (
+        <span className="ml-auto flex items-center gap-0.5 text-[10px] text-muted-foreground/50">
+          <kbd className="inline-flex h-5 items-center rounded border border-border/50 bg-muted/50 px-1 font-mono text-[10px]">⌘</kbd>
+          <kbd className="inline-flex h-5 items-center rounded border border-border/50 bg-muted/50 px-1 font-mono text-[10px]">{badge}</kbd>
+        </span>
+      )}
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton isActive={isActive} tooltip={label} onClick={onClick} className="cursor-pointer">
+          {content}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+        <Link href={href!}>{content}</Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
+```
+
+When collapsed: icon centers at 32×32, span truncates to invisible, badge hides (overflow-hidden clips it), tooltip appears on hover.
+
+### Collapsible Nested Section
+
+```tsx
+function CollapsibleSection({ label, icon: Icon, items }: { ... }) {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton className="cursor-pointer" tooltip={label}>
+            <Icon className="h-4 w-4" />
+            <span>{label}</span>
+            <ChevronRight className={cn(
+              "ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-transform duration-200",
+              open && "rotate-90"
+            )} />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {items.map((item) => (
+              <SidebarMenuSubItem key={item.id}>
+                <SidebarMenuSubButton asChild>
+                  <Link href={item.href}><span className="truncate">{item.name}</span></Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  )
+}
+```
+
+`SidebarMenuSub` auto-hides when collapsed: `group-data-[collapsible=icon]:hidden`. The parent button still shows as an icon-only tooltip item.
+
+### Group Labels (Auto-Hide Trick)
+
+```tsx
+<SidebarGroup className="py-1">
+  <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+    Projects
+  </SidebarGroupLabel>
+  <SidebarMenu>{/* items */}</SidebarMenu>
+</SidebarGroup>
+```
+
+Built-in auto-hide uses `-mt-8 opacity-0` (NOT `display:none`). This keeps the label in DOM so items below shift up with a smooth `transition-[margin,opacity] duration-200 ease-linear` instead of a hard jump.
+
+### Inline Action Button (Show on Hover)
+
+```tsx
+<SidebarMenuItem>
+  <SidebarMenuButton asChild tooltip="Projects">
+    <Link href="/projects"><FolderOpen className="h-4 w-4" /><span>Projects</span></Link>
+  </SidebarMenuButton>
+  <SidebarMenuAction showOnHover>
+    <Plus className="h-4 w-4" />
+  </SidebarMenuAction>
+</SidebarMenuItem>
+```
+
+The action is positioned `absolute right-1` and uses `md:opacity-0 group-hover/menu-item:opacity-100` to appear only on hover. Auto-hidden when collapsed.
+
+---
+
+## Footer Widgets (Collapsed ↔ Expanded Pattern)
+
+Footer items must gracefully transform between full content (expanded) and centered icon + tooltip (collapsed).
+
+### Pattern: Early Return for Collapsed
+
+```tsx
+function UsageWidget() {
+  const { state } = useSidebar()
+  const collapsed = state === 'collapsed'
+
+  // Collapsed: centered icon with tooltip
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button className="flex items-center justify-center mx-auto w-8 h-8 cursor-pointer hover:bg-accent/50 rounded-md transition-colors">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">75% credits used</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  // Expanded: full widget
+  return (
+    <div className="mx-2 px-3 py-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground">250 credits left</span>
+        <span className="text-[10px] text-muted-foreground/60">75%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: '75%' }} />
+      </div>
+    </div>
+  )
+}
+```
+
+### User Row (Using SidebarMenuButton)
+
+```tsx
+function UserRow() {
+  const { state } = useSidebar()
+  const collapsed = state === 'collapsed'
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={userName} className={cn(collapsed && "flex items-center justify-center")}>
+          <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarImage src={photo} />
+              <AvatarFallback className="text-[10px] bg-muted">{initial}</AvatarFallback>
             </Avatar>
-          ) : (
+            {!collapsed && (
+              <>
+                <span className="truncate text-sm font-medium">{userName}</span>
+                <Settings className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
+              </>
+            )}
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  )
+}
+```
+
+Uses `SidebarMenuButton tooltip=` so collapsed state gets auto-tooltip. Avatar at `h-6 w-6` fits within the `!size-8` collapsed button.
+
+---
+
+## Org/Team Switcher (Popover in Header)
+
+**Critical: DO NOT wrap PopoverTrigger in Tooltip** — breaks click handling.
+
+```tsx
+function OrgSwitcher() {
+  const { state } = useSidebar()
+  const [open, setOpen] = useState(false)
+  const collapsed = state === 'collapsed'
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <SidebarMenuButton size="lg" className={cn("w-full cursor-pointer", collapsed && "justify-center")}>
+          <div className={cn(
+            "flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0",
+            collapsed && "group-hover/sidebar:hidden"
+          )}>
+            {initial}
+          </div>
+          {!collapsed && (
             <>
-              <div className="flex items-center gap-2 truncate">
-                <Avatar className="h-5 w-5 shrink-0">{/* ... */}</Avatar>
-                <span className="truncate">{teamName}</span>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold truncate leading-tight">{orgName}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{planLabel}</p>
               </div>
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </>
           )}
-        </Button>
+        </SidebarMenuButton>
       </PopoverTrigger>
-      <PopoverContent side={collapsed ? "right" : "bottom"}>
-        {/* Team list */}
+      <PopoverContent
+        align="start"
+        side={collapsed ? 'right' : 'bottom'}
+        sideOffset={4}
+        className="w-60 p-1"
+      >
+        {/* Org list items */}
+        {orgs.map((org) => (
+          <button
+            key={org.id}
+            onClick={() => switchOrg(org.id)}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent transition-colors w-full cursor-pointer text-sm"
+          >
+            <div className="flex items-center justify-center h-6 w-6 rounded bg-primary/10 text-primary text-[10px] font-bold shrink-0">
+              {org.name.charAt(0)}
+            </div>
+            <span className="flex-1 truncate font-medium">{org.name}</span>
+            {org.id === active.id && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+          </button>
+        ))}
+        <SidebarSeparator className="my-1" />
+        <Link href="/settings" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer">
+          <Settings className="h-3.5 w-3.5" /> Settings
+        </Link>
+        <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer w-full">
+          <Plus className="h-3.5 w-3.5" /> New workspace
+        </button>
       </PopoverContent>
     </Popover>
-  );
+  )
 }
 ```
 
-### Step 6: Navigation with Tooltips
+Popover `side` flips to `"right"` when collapsed so it doesn't overlap the narrow sidebar.
+
+---
+
+## SidebarRail (Edge Hover Toggle)
 
 ```tsx
-<ScrollArea className={cn("flex-1 py-4", collapsed ? "px-2" : "px-3")}>
-  <nav className="space-y-1">
-    {navigation.map((item) => {
-      const isActive = /* your active logic */;
-      
-      const linkContent = (
-        <Link
-          href={item.href}
-          className={cn(
-            "flex items-center rounded-lg text-sm font-medium transition-colors",
-            collapsed ? "justify-center p-3" : "gap-3 px-3 py-2",
-            isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-          )}
-        >
-          <item.icon className="h-4 w-4 shrink-0" />
-          {!collapsed && item.name}
-        </Link>
-      );
-
-      if (collapsed) {
-        return (
-          <Tooltip key={item.name}>
-            <TooltipTrigger asChild>
-              {linkContent}
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {item.name}
-            </TooltipContent>
-          </Tooltip>
-        );
-      }
-
-      return <div key={item.name}>{linkContent}</div>;
-    })}
-  </nav>
-</ScrollArea>
+<SidebarRail />
 ```
 
-### Step 7: User Footer (NO Tooltip wrapper)
+An invisible `w-4` hit area positioned at `-right-4` of the sidebar. On hover, it shows a `2px` vertical line (`hover:after:bg-sidebar-border`). Clicking toggles the sidebar. Users discover this naturally — it's a secondary toggle alongside the header buttons.
+
+---
+
+## Mobile Behavior
+
+**Automatic.** The `Sidebar` component checks `useIsMobile()` (768px breakpoint) and renders:
+- Desktop: `hidden md:block` with collapse animation
+- Mobile: Radix `Sheet` overlay (slide-in from left, with backdrop)
+
+`toggleSidebar()` routes to the correct behavior:
 
 ```tsx
-<div className={cn(
-  "border-t border-sidebar-border",
-  collapsed ? "p-2" : "p-3"
-)}>
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <button className={cn(
-        "flex items-center rounded-lg hover:bg-sidebar-accent/50 transition-colors cursor-pointer",
-        collapsed ? "justify-center w-full p-2" : "gap-3 w-full p-2"
-      )}>
-        <Avatar className="h-8 w-8 shrink-0">
-          <AvatarImage src={user.image || undefined} />
-          <AvatarFallback className="text-xs">
-            {getInitials(user.name)}
-          </AvatarFallback>
-        </Avatar>
-        {!collapsed && (
-          <>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          </>
-        )}
-      </button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent 
-      align={collapsed ? "start" : "end"} 
-      side={collapsed ? "right" : "top"} 
-      className="w-56"
-    >
-      {/* Show user info when collapsed since no tooltip */}
-      {collapsed && (
-        <>
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{user.name}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+const toggleSidebar = () => isMobile ? setOpenMobile(o => !o) : setOpen(o => !o)
+```
+
+Mobile trigger in your page header:
+
+```tsx
+<SidebarTrigger className="md:hidden" />  // PanelLeft icon, h-7 w-7
+```
+
+The `useIsMobile` hook:
+
+```tsx
+const MOBILE_BREAKPOINT = 768
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const onChange = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    mql.addEventListener("change", onChange)
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+  return !!isMobile
+}
+```
+
+---
+
+## Keyboard Shortcut
+
+Built into `SidebarProvider`: **⌘B** (Mac) / **Ctrl+B** (Windows). No configuration needed. Calls `toggleSidebar()`.
+
+---
+
+## State Persistence
+
+### localStorage (instant on mount)
+
+```tsx
+const SIDEBAR_KEY = 'sidebar_state'
+
+const [open, setOpen] = useState(() => {
+  if (typeof window === 'undefined') return true
+  const stored = localStorage.getItem(SIDEBAR_KEY)
+  return stored === null ? true : stored === 'true'
+})
+
+const handleOpenChange = (value: boolean) => {
+  setOpen(value)
+  localStorage.setItem(SIDEBAR_KEY, String(value))
+}
+
+<SidebarProvider open={open} onOpenChange={handleOpenChange}>
+```
+
+### Cookie (SSR, set by SidebarProvider internally)
+
+```tsx
+document.cookie = `sidebar_state=${openState}; path=/; max-age=${60 * 60 * 24 * 7}`
+```
+
+---
+
+## Loading Skeleton (Zero Layout Shift)
+
+Match sidebar width and element sizes:
+
+```tsx
+function SidebarSkeleton() {
+  return (
+    <div className="flex min-h-screen">
+      <div className="w-64 shrink-0 border-r bg-sidebar p-3 space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-md bg-muted animate-pulse" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-28 rounded bg-muted animate-pulse" />
+            <div className="h-2 w-16 rounded bg-muted animate-pulse" />
           </div>
-          <DropdownMenuSeparator />
-        </>
-      )}
-      {/* Rest of dropdown items */}
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
+        </div>
+        <div className="space-y-1 pt-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-8 rounded-md bg-muted/50 animate-pulse" />
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    </div>
+  )
+}
 ```
 
-### Step 8: Mobile Backdrop & Main Content
+---
+
+## Full Assembly
+
+### Layout (wraps your app)
 
 ```tsx
-{/* Mobile backdrop */}
-{sidebarOpen && (
-  <div
-    className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
-    onClick={() => setSidebarOpen(false)}
-  />
-)}
+'use client'
+import { useState } from 'react'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { AppSidebar } from './app-sidebar'
 
-{/* Main content - min-h-0 prevents scroll overflow */}
-<div className="flex-1 flex flex-col min-w-0 min-h-0">
-  <header className="flex h-14 items-center gap-4 border-b px-4 lg:hidden">
-    <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-      <Menu className="h-5 w-5" />
-    </Button>
-    <span className="font-semibold">App Name</span>
-  </header>
-  <main className="flex-1 overflow-auto">{children}</main>
-</div>
+const SIDEBAR_KEY = 'sidebar_state'
+
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem(SIDEBAR_KEY)
+    return stored === null ? true : stored === 'true'
+  })
+
+  const handleOpenChange = (value: boolean) => {
+    setOpen(value)
+    localStorage.setItem(SIDEBAR_KEY, String(value))
+  }
+
+  return (
+    <SidebarProvider open={open} onOpenChange={handleOpenChange}>
+      <AppSidebar />
+      <SidebarInset className="overflow-y-auto h-dvh">
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
 ```
 
-## Reference Implementation
+Note: `h-dvh` (dynamic viewport height) is better than `h-screen` on mobile Safari.
 
-See `assets/components/dashboard-shell.tsx` and `assets/components/team-switcher.tsx` for complete working examples.
+### Sidebar (all sections)
+
+```tsx
+export function AppSidebar() {
+  return (
+    <Sidebar collapsible="icon" className="border-r group/sidebar">
+      <SidebarHeader className="pb-0">
+        <SidebarMenu>
+          <SidebarMenuItem className="flex items-center gap-1">
+            <ExpandButton />
+            <OrgSwitcher />
+            <CollapseToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup className="py-1">
+          <SidebarMenu>
+            <NavItem href="/dashboard" label="Home" icon={Home} />
+            <NavItem label="Search" icon={Search} badge="K" onClick={openSearch} />
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarMenu>
+            <CollapsibleSection label="Recent" icon={Clock} items={recentItems} />
+            <NavItem href="/projects" label="All projects" icon={FolderOpen} />
+            <NavItem href="/starred" label="Starred" icon={Star} />
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="gap-0.5 pb-2">
+        <SidebarSeparator />
+        <UsageWidget />
+        <UserRow />
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+```
+
+---
 
 ## CSS Variables (globals.css)
-
-Ensure these sidebar CSS variables are defined:
 
 ```css
 :root {
@@ -372,28 +762,78 @@ Ensure these sidebar CSS variables are defined:
   --sidebar-border: 220 13% 91%;
   --sidebar-accent: 220 14.3% 95.9%;
   --sidebar-accent-foreground: 220.9 39.3% 11%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
 }
-
 .dark {
   --sidebar: 240 5.9% 10%;
   --sidebar-foreground: 240 4.8% 95.9%;
   --sidebar-border: 240 3.7% 15.9%;
   --sidebar-accent: 240 3.7% 15.9%;
   --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
 }
 ```
 
+Tailwind config (`theme.extend.colors`):
+
+```ts
+sidebar: {
+  DEFAULT: "hsl(var(--sidebar))",
+  foreground: "hsl(var(--sidebar-foreground))",
+  border: "hsl(var(--sidebar-border))",
+  accent: "hsl(var(--sidebar-accent))",
+  "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+  ring: "hsl(var(--sidebar-ring))",
+},
+```
+
+---
+
+## Critical Rules
+
+### DO
+
+- `collapsible="icon"` on `<Sidebar>` for icon-only collapse
+- `group/sidebar` class on `<Sidebar>` for hover detection
+- `useSidebar()` to read state — never prop-drill `collapsed`
+- `SidebarMenuButton tooltip={label}` for auto-tooltips
+- `group-data-[collapsible=icon]:` selectors for collapsed styling
+- Match expand button and avatar sizes exactly (`h-7 w-7`)
+- `e.stopPropagation()` on expand button (prevents popover trigger)
+- `PanelLeftOpen` with `rotate-180` for collapse (one icon, not two)
+- `leading-tight` for multi-line text in header button
+- `shrink-0` on all icons and trailing elements
+- `truncate` on all text that could overflow
+- `min-w-0` on flex children that contain truncated text
+- `cursor-pointer` on all clickable elements
+
+### DO NOT
+
+- Nest `Tooltip` inside `PopoverTrigger` or `DropdownMenuTrigger`
+- Use `transition-all` — use specific properties (`transition-[width]`)
+- Build a custom `<aside>` — use the shadcn/ui Sidebar system
+- Use `w-16` (64px) for collapsed — it's `3rem` (48px) via CSS var
+- Use `display:none` for group labels — use the `-mt-8 opacity-0` trick
+- Use `h-screen` — use `h-dvh` for mobile Safari compatibility
+- Add `TooltipProvider` yourself — it's already in `SidebarProvider`
+
+---
+
 ## Checklist
 
-- [ ] Two states: `sidebarOpen` (mobile) and `collapsed` (desktop)
-- [ ] Width transitions smoothly between w-64 and w-16
-- [ ] `group/sidebar` on aside element for hover detection
-- [ ] Collapse button shows on hover **anywhere on sidebar**
-- [ ] Team switcher and collapse button are SAME SIZE (h-10 w-10)
-- [ ] Only ONE shows at a time when collapsed (swap on hover)
-- [ ] NO Tooltip wrapper on Popover/Dropdown triggers
-- [ ] Navigation tooltips on right when collapsed
-- [ ] User info shown in dropdown header when collapsed
-- [ ] Mobile has backdrop + slide animation
-- [ ] Mobile header with hamburger menu
-- [ ] All tooltips have zero delay
+- [ ] `npx shadcn@latest add sidebar tooltip avatar popover collapsible separator skeleton sheet`
+- [ ] CSS variables in globals.css (light + dark) + Tailwind config
+- [ ] `SidebarProvider` wraps app with `open`/`onOpenChange` + localStorage
+- [ ] `Sidebar collapsible="icon" className="border-r group/sidebar"`
+- [ ] `ExpandButton`: `hidden group-hover/sidebar:flex`, same size as avatar
+- [ ] `CollapseToggle`: `PanelLeftOpen rotate-180`, conditional render
+- [ ] Avatar: `group-hover/sidebar:hidden` when collapsed
+- [ ] All nav items use `SidebarMenuButton tooltip={label}`
+- [ ] Group labels use `SidebarGroupLabel` (auto-hides)
+- [ ] Collapsible sections use `Collapsible` + `SidebarMenuSub`
+- [ ] Footer widgets: collapsed=icon+tooltip, expanded=full content
+- [ ] `SidebarRail` for edge hover toggle
+- [ ] `SidebarInset className="overflow-y-auto h-dvh"`
+- [ ] Loading skeleton matches sidebar width (`w-64`)
+- [ ] Mobile renders as Sheet (automatic)
+- [ ] Keyboard shortcut: ⌘B / Ctrl+B (automatic)
