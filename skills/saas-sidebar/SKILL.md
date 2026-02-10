@@ -816,6 +816,54 @@ sidebar: {
 - Use `display:none` for group labels — use the `-mt-8 opacity-0` trick
 - Use `h-screen` — use `h-dvh` for mobile Safari compatibility
 - Add `TooltipProvider` yourself — it's already in `SidebarProvider`
+- Put `Tooltip`-wrapped elements inside a `Popover`/`Dialog` content — Radix tooltips trigger on **focus**, not just hover. When a popover opens, focus moves into its content and auto-fires the tooltip on the first focusable element. See "Tooltip-on-Focus Gotcha" below.
+
+---
+
+## Tooltip-on-Focus Gotcha (Radix)
+
+**Problem:** Radix `<Tooltip>` triggers on both hover AND focus. When you place tooltip-wrapped buttons inside a `<PopoverContent>`, opening the popover moves focus into the content, which immediately triggers the tooltip on the first focusable element — even without hovering.
+
+**This affects any component with tooltips rendered inside:**
+- `PopoverContent`
+- `DialogContent`
+- `SheetContent`
+- Any container that receives focus on open
+
+**Solution:** Add a `showTooltips` prop to components that contain tooltips, and disable them when used inside focus-trapping containers:
+
+```tsx
+interface ThemeToggleProps {
+  showTooltips?: boolean  // default true
+}
+
+function ThemeToggle({ showTooltips = true }: ThemeToggleProps) {
+  const btn = <button aria-label={label}>...</button>
+
+  // Skip tooltip wrapper when inside popover/dialog
+  if (!showTooltips) return btn
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// Usage inside popover — tooltips disabled (label "Theme" provides context)
+<PopoverContent>
+  <span>Theme</span>
+  <ThemeToggle showTooltips={false} />
+</PopoverContent>
+
+// Usage in header — tooltips enabled (icon-only, needs tooltip)
+<ThemeToggle showTooltips={true} />
+```
+
+**Why not just increase `delayDuration`?** The delay only affects hover. Focus-triggered tooltips ignore `delayDuration` in Radix and fire immediately regardless of the delay value.
+
+**Rule of thumb:** If a tooltip-wrapped element appears inside a focus-trapping container, either disable tooltips or ensure adjacent text labels provide sufficient context.
 
 ---
 
