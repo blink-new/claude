@@ -2,6 +2,7 @@
 mode: subagent
 name: verifier
 description: "Step 3 of feature development. Use AFTER implementer completes work. Reviews code and reports PASS or issues. If issues found, delegate back to implementer. Loop until PASS."
+model: "z-ai/glm-4.7:nitro"
 readonly: false
 ---
 mode: subagent
