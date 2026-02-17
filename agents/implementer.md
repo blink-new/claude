@@ -2,7 +2,6 @@
 mode: subagent
 name: implementer
 description: "Step 2 of feature development. Use AFTER planner creates PRD, or AFTER verifier reports issues. Implements the PRD or fixes verifier issues. After implementation completes, delegate to verifier."
-model: "z-ai/glm-5:nitro"
 ---
 mode: subagent
 
