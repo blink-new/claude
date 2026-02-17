@@ -2,6 +2,7 @@
 mode: subagent
 name: explorer
 description: "Codebase exploration agent. Use when needing to understand how something works, find where logic is implemented, or trace call stacks. Pass specific questions. Returns concise report with TLDR + file references."
+model: vercel/zai/glm-4.6
 readonly: true
 ---
 mode: subagent

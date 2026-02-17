@@ -2,6 +2,7 @@
 mode: subagent
 name: git-manager
 description: "Git commit specialist. Use after completing a feature to commit only relevant files. Follows conventional commit format. Never pushes."
+model: vercel/zai/glm-4.6
 ---
 mode: subagent
 

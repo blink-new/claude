@@ -2,6 +2,7 @@
 mode: subagent
 name: implementer
 description: "Step 2 of feature development. Use AFTER planner creates PRD, or AFTER verifier reports issues. Implements the PRD or fixes verifier issues. After implementation completes, delegate to verifier."
+model: vercel/minimax/minimax-m2.1
 ---
 mode: subagent
 
