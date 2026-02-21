@@ -1,5 +1,5 @@
 ---
-name: seo-geo-website
+name: website-llm-seo
 description: Make any Next.js website fully indexable by Google (SEO) and AI engines like ChatGPT, Perplexity, Claude, and Gemini (GEO / Generative Engine Optimization). Diagnoses and fixes the three root causes of invisible content: auth-loading skeletons, Suspense/RSC streaming, and missing llms.txt signals. Use when building a new site, auditing SEO, setting up llms.txt, fixing pages that show no content to crawlers, or improving AI engine discoverability.
 ---
 
