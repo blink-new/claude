@@ -25,44 +25,47 @@ Feed all items through batched concurrent AI calls using the unified category se
 // Round 1 Map — per batch
 async function r1Batch(items: Item[], idx: number): Promise<string[]> {
   const block = items.map(item => `- ${snippet(item)}`).join('\n')
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model: gateway('google/gemini-2.5-flash-lite'),
-    schema: z.object({ categories: z.array(z.string()) }),
+    output: Output.object({ schema: z.object({ categories: z.array(z.string()) }) }),
     temperature: 0.3,
     prompt: `[CONTEXT: explain what these items ARE and what dimension to cluster on]
 Study these ${items.length} items. Generate category labels describing [HOW/WHAT/WHICH dimension].
 Items: ${block}
 Return 5–12 labels in lowercase-kebab-case.`,
   })
-  return object.categories
+  if (!output) throw new Error('AI failed to generate categories')
+  return output.categories
 }
 
 // Round 1 Reduce
 async function reduce(allCandidates: string[][]): Promise<Category[]> {
   const unique = [...new Set(allCandidates.flat())]
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model: gateway('google/gemini-2.5-flash-lite'),
-    schema: z.object({ categories: z.array(z.object({ label: z.string(), description: z.string() })) }),
+    output: Output.object({ schema: z.object({ categories: z.array(z.object({ label: z.string(), description: z.string() })) }) }),
     temperature: 0.1,
     prompt: `Merge these raw labels into a clean unified set. Merge synonyms.
 Labels: ${unique.join(', ')}
 Target 8–15 final categories with a one-sentence description each.`,
   })
-  return object.categories
+  if (!output) throw new Error('AI failed to reduce categories')
+  return output.categories
 }
 
 // Round 2 Categorize — per batch
 async function r2Batch(items: Item[], categories: Category[], idx: number): Promise<Map<string, string>> {
   const catList = categories.map(c => `- ${c.label}: ${c.description}`).join('\n')
   const block = items.map(i => `${i.id}|||${snippet(i)}`).join('\n')
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model: gateway('google/gemini-2.5-flash-lite'),
-    schema: z.object({ results: z.array(z.object({ id: z.string(), category: z.string() })) }),
+    output: Output.object({ schema: z.object({ results: z.array(z.object({ id: z.string(), category: z.string() })) }) }),
     temperature: 0,
     prompt: `CATEGORIES:\n${catList}\n\nAssign each item to exactly ONE category.\n${block}`,
   })
+  if (!output) throw new Error('AI failed to categorize items')
   const map = new Map<string, string>()
-  for (const r of object.results) map.set(r.id, r.category)
+  for (const r of output.results) map.set(r.id, r.category)
   return map
 }
 ```
