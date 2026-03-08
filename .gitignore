@@ -2,3 +2,6 @@
 .env.*
 !.env
 .todo/
+firebase-debug.log
+logs/
+test_images/
