@@ -70,7 +70,8 @@ if ('link' in args) {
   const authUrl = oAuth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' })
 
   console.log(`\nLinking account: "${name}"`)
-  console.log('Opening browser...\n')
+  console.log(`Auth URL (open if browser does not launch):\n\n${authUrl}\n`)
+  console.log("Opening browser...")
 
   // Auto-open browser — works on macOS (open), Linux (xdg-open), Windows (start)
   const opener = process.platform === 'darwin' ? 'open'
@@ -80,7 +81,6 @@ if ('link' in args) {
     execSync(`${opener} "${authUrl}"`)
   } catch {
     console.log('Could not auto-open browser. Open this URL manually:\n')
-    console.log(authUrl)
   }
 
   console.log('Waiting for Google callback on http://localhost:3333 ...\n')
