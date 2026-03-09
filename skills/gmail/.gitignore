@@ -1,0 +1,9 @@
+# Credentials — NEVER commit these
+credentials.json
+
+# Per-account tokens and cached profiles — NEVER commit these
+accounts/
+
+# Dependencies
+node_modules/
+package-lock.json
