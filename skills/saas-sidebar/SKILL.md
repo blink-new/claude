@@ -13,6 +13,10 @@ Build a polished, collapsible sidebar using the **shadcn/ui Sidebar component sy
 - Collapsible/minimizable sidebar (icon-only mode)
 - Responsive layout with mobile sheet overlay
 
+## Assets (optional starters)
+
+Bundled with this skill: `assets/components/app-sidebar.tsx`, `assets/components/app-layout.tsx`, `assets/config/sidebar-css-vars.css`. In Blink’s agent, load via `read_skill` with `path` + `resource` (e.g. `saas-sidebar` + `assets/components/app-sidebar.tsx`).
+
 ## Quick Start
 
 ```bash
