@@ -299,6 +299,10 @@ Note: `leading-tight` on both lines keeps them compact within the `h-12` (size="
 
 ## Navigation Items
 
+### Route existence (ship with every sidebar)
+
+Every `Link` / `href` must point to a **real** App Router `page.tsx` (or equivalent) that exists in the repo. If a section is not implemented yet, either add a minimal stub page (title + empty state, no throwing code) or **do not** add that nav entry. Linking to missing routes or rendering `undefined.map` drives Next.js `error.tsx` (“Something went wrong”) and burns user trust and credits.
+
 ### Standard Nav Item
 
 ```tsx
