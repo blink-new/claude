@@ -21,6 +21,25 @@ npx shadcn@latest add sidebar tooltip avatar popover collapsible separator skele
 
 This generates `components/ui/sidebar.tsx` (~770 lines) with ALL sidebar primitives. Do NOT build a custom `<aside>`.
 
+## MANDATORY — User row pinned to bottom (most common Blink bug)
+
+If account / avatar / **Sign out** sit **directly under nav** with empty space below, the layout is **wrong**. The sidebar inner column **must** be `flex flex-col` with **full height**, **scrollable middle**, **non-shrinking footer**:
+
+- `Sidebar` (or a wrapper around it): `className="flex h-full min-h-0 flex-col"` (use `min-h-svh` only if you are not already inside a full-height shell).
+- Middle (`SidebarContent` + groups): `className="flex-1 min-h-0 overflow-y-auto"`.
+- Bottom (`SidebarFooter` with user + logout): `className="shrink-0 border-t border-border"` — **only** user/sign-out/widgets belong here, never stacked after nav in `SidebarContent` without this structure.
+
+Same idea as:
+
+```tsx
+<aside className="flex flex-col h-full min-h-0">
+  <nav className="flex-1 min-h-0 overflow-y-auto">{/* nav */}</nav>
+  <div className="shrink-0 border-t p-3">{/* user + sign out */}</div>
+</aside>
+```
+
+The **Full Assembly** example below already uses `SidebarFooter`; always keep **`flex-1` + `min-h-0` + `overflow-y-auto` on `SidebarContent`** when the shell is full viewport height.
+
 ---
 
 ## Architecture
