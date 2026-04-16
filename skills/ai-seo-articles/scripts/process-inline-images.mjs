@@ -175,8 +175,14 @@ async function processClay(scene, alt) {
     text.match(/https?:\/\/fal\.media\/[^\s"'>]+/) ??
     text.match(/https?:\/\/[^\s"'>]+\.(?:webp|png|jpg|jpeg)(?:\?[^\s"'>]*)?/i)
   if (!urlMatch) throw new Error(`No image URL in response: ${text.slice(0, 200)}`)
-  console.log(`  ✓ Generated: ${urlMatch[0].slice(0, 70)}`)
-  return uploadToCDN(urlMatch[0], `inline-clay-${slugify(scene)}.webp`, alt)
+  const imageUrl = urlMatch[0]
+  console.log(`  ✓ Generated: ${imageUrl.slice(0, 70)}`)
+  // If already on cdn.blink.new, use directly — no copy needed, intra-CDN copy can fail
+  if (imageUrl.startsWith('https://cdn.blink.new/')) {
+    console.log(`  ✓ Already on CDN, using directly`)
+    return imageUrl
+  }
+  return uploadToCDN(imageUrl, `inline-clay-${slugify(scene)}.webp`, alt)
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

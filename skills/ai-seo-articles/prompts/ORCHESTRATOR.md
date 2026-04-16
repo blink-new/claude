@@ -536,10 +536,7 @@ For each APPROVED draft in .todo/seo/drafts/ (those with "# SCORE:" line showing
    gradient instruction. ALWAYS use "Centered composition, full frame. No dark gradients."
 
    d. Call: generate_image(prompt: "[assembled prompt]", aspect_ratio: "16:9", output_format: "webp")
-   e. Re-host via: cms_upload_asset(url: "[URL from generate_image]", filename: "[slug]-hero.webp", alt_text: "[title]")
-      ⚠️ generate_image returns cdn.blink.new/ai-generated/... — EPHEMERAL (expires in days).
-         ALWAYS call cms_upload_asset even though the URL looks like cdn.blink.new.
-         Only cms/mcp-uploads/ URLs are permanent. NEVER embed ai-generated/ URLs in articles.
+   e. Re-host via: cms_upload_asset(url: "[fal.media URL]", filename: "[slug]-hero.webp", alt_text: "[title]")
       Returns: { "public_url": "[CDN base URL from COMPANY.md]/cms/mcp-uploads/[slug]-hero.webp" }
       If shows [REDACTED]/..., reconstruct: [CDN base URL from COMPANY.md] + path-after-[REDACTED]
 
@@ -586,14 +583,8 @@ For each APPROVED draft in .todo/seo/drafts/ (those with "# SCORE:" line showing
    - stray HTML comments → strip manually
    - banned MDX component → replace with AccordionGroup/Steps
 
-   Also before cms_write_file:
-   a. Strip any line starting with `# SCORE:` from content (renders as raw H1 if left in).
-   b. Grep for `cdn.blink.new/ai-generated/` anywhere in content (frontmatter OR body).
-      If found → STOP. Those are ephemeral URLs that expire within days.
-      For each match: call generate_image again, immediately call cms_upload_asset,
-      replace the ai-generated/ URL with the returned cms/mcp-uploads/ URL.
-      Only cdn.blink.new/cms/mcp-uploads/ URLs are permanent and safe to publish.
-
+   Also strip the score line before cms_write_file:
+   Remove any line starting with `# SCORE:` from content (renders as raw H1 if left in).
    cms_write_file path="blog/[slug].mdx" content="[full MDX content, score line removed]" publish=true
    ONLY proceed if response shows status: "published"
    If publish fails: log STATUS: draft-failed in manifest. Do not retry.

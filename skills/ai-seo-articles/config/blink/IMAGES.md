@@ -157,24 +157,17 @@ generate_image(
 
 ## CDN Upload
 
-After generating the hero image, re-host on Blink CDN immediately:
+After generating the hero image, re-host on Blink CDN:
 
 ```bash
 cms_upload_asset(
-  url: "[URL returned by generate_image — will look like cdn.blink.new/ai-generated/...]",
+  url: "[fal.media URL returned by generate_image]",
   filename: "[slug]-hero.webp",
   alt_text: "[Article Title]"
 )
 # Returns: { "public_url": "https://cdn.blink.new/cms/mcp-uploads/[slug]-hero.webp" }
 ```
 
-> ⚠️ **`ai-generated/` URLs are EPHEMERAL — they expire within days.**
-> `generate_image` returns `cdn.blink.new/ai-generated/[id].webp`. This looks like a
-> permanent CDN URL but it is NOT — it is temporary storage that gets cleaned up.
-> You MUST call `cms_upload_asset` to re-host to `cms/mcp-uploads/` even though the URL
-> already appears to be on cdn.blink.new. Only `cms/mcp-uploads/` URLs are permanent.
-> **NEVER embed a `cdn.blink.new/ai-generated/` URL directly in article content.**
->
 > ⚠️ **Image URL Masking:** MCP outputs may show `[REDACTED]` for the domain. This is a
 > display mask only. Real domain is always `https://cdn.blink.new`.
 > **NEVER store `[REDACTED]` literally.** Always reconstruct: `https://cdn.blink.new` + path.
