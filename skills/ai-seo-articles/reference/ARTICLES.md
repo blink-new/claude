@@ -102,7 +102,7 @@ Use the returned `public_url` as `image_url` in frontmatter.
 
 ---
 
-### Step 2c — In-article Inline Images (2–3 per article)
+### Step 2c — In-article Inline Images (2–3 per article, aim for 3)
 
 See `config/blink/IMAGES.md` for the complete inline image system, including:
 - Which type to use (`INLINE_IMAGE_REAL` vs `INLINE_IMAGE_CLAY`)
@@ -110,24 +110,50 @@ See `config/blink/IMAGES.md` for the complete inline image system, including:
 - Clay scene selector table
 - Alt text / caption rules
 
+**Inline image count guidance (SEO-driven):**
+- **3 images** → recommended for articles 1000+ words (full 10/10 Images score)
+- **2 images** → acceptable for shorter, focused articles 600–999 words (7/10 score)
+- **0–1 images** → not acceptable — scores 0/10 and blocks publication at the 90-point gate
+
 **Placement rules (same for both types):**
-- **Image 1** — after the intro bold answer, before the 1st H2: scope-setter for what the article covers
+
+⚠️ **Image 1 must NEVER be the same scene as the hero image.** The hero sets the article scope.
+Image 1 zooms into the specific problem or claim. Using the same image twice looks broken.
+
+- **Image 1** — after the intro paragraph, before the 1st H2: illustrates the specific **problem, pain point, or key claim** from the intro (NOT another scope-setter — the hero already does that)
 - **Image 2** — after the most data-heavy section: makes abstract numbers visual
 - **Image 3** — after the comparison table or final tool section, before the FAQ
+
+⚠️ **`<!-- INLINE_IMAGE_* -->` slots are temporary draft placeholders — the publish pipeline converts them to CDN images before the article reaches the CMS.**
+
+They are NOT HTML comments in the "avoid at all costs" sense — they are required image slots with a specific lifecycle:
+1. Writer places them in the draft (STEP 2c)
+2. Publisher runs `process-inline-images.mjs` → every slot becomes a `![alt](cdn-url)` image
+3. Only then is the draft published to CMS — zero HTML comments in the final content
+
+If a slot somehow reaches the CMS unprocessed, MDX v2 will crash the page. The publish pipeline prevents this: the script always runs before `cms_write_file`, and the post-publish audit (`audit-fix-blog.mjs`) catches anything that slips through.
+
+**Writing INLINE_IMAGE slots is REQUIRED — not writing them is the error, not writing them.**
 
 **Run the script after writing (do not manually process comments):**
 ```bash
 node .cursor/skills/ai-seo-articles/scripts/process-inline-images.mjs .todo/seo/drafts/DRAFT_[slug].mdx
 ```
 
+**If you wrote directly to CMS without processing, run the bulk fixer:**
+```bash
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix-strip
+```
+
 Exit codes:
 
 | Code | Meaning | Action |
 |---|---|---|
-| `0` | All images succeeded | Proceed to publish |
-| `2` | No comments found | Writer must add INLINE_IMAGE comments first |
-| `3` | Partial success | Check `INLINE_IMAGE_FAILED` markers in draft, retry or re-run |
-| `1` | Fatal error | Check MCP server connectivity, bearer token |
+| `0` | Images processed — draft is clean | Proceed to publish |
+| `2` | No INLINE_IMAGE slots found — writer skipped STEP 2c | Publisher logs IMAGES_MISSING; article publishes without inline images |
+| `1` | Fatal file I/O error | Fix path and retry |
+
+Note: there is no exit 3. The script always exits 0 (processed) or 2 (no slots found). Partial failures (individual image fails) still exit 0 — the failed slot is silently removed and the draft remains publishable.
 
 
 ## Step 3 — Check Existing Content
@@ -167,6 +193,7 @@ description: "Meta description 150–160 chars. Lead with keyword, add compellin
 category: "Tutorial"
 tags: ["AI", "App Builder", "No-Code"]
 image_url: "/images/blog/[slug].png"    # ← use image_url: (NOT image: or cover_image:)
+sort_order: 0                           # ← always 0 for new articles
 status: "published"
 ---
 ```
@@ -240,16 +267,19 @@ Use whichever patterns serve your structure. Mix them. Ignore them if the SERP e
 
 ## CTA Reference
 
-**CTAs are auto-injected by the rendering engine.** Do NOT write manual CTA sections.
+**CTAs are auto-injected by the rendering engine.** Do NOT write a manual CTA section at the end of the article.
 
-See `config/blink/COPY.md` for exact CTA strings per market.
+See `markets/[market]/COPY.md` for exact CTA strings per market (openclaw, vibe-coding, or cursor-claude).
+
+**Exception — Market C "Build This With Your AI Agent" section (REQUIRED, NOT a manual CTA):**
+This section (described in `markets/cursor-claude/COPY.md`) is NOT a CTA section — it is a required workflow tutorial section that teaches the reader how to use the Blink plugin. It is the last substantive section before the FAQ. If no FAQ, it is the final section before the closing action. It must always be present in Market C articles. The auto-injected CTA fires separately.
 
 The blog rendering engine automatically injects:
 1. **Reading progress bar** — fixed 2px top bar, automatic
 2. **Mid-article inline CTA** — injected after the 3rd H2 heading, automatic
 3. **Bottom CTA section** — shown after article content, automatic
 
-Market is auto-detected from article tags at render time (see MARKETS.md for detection rules).
+Market is auto-detected from article tags at render time (see `markets/[market]/COPY.md` for detection tags per market).
 
 **What this means for writers:**
 - Do NOT write a manual CTA section at the end of articles
@@ -978,7 +1008,7 @@ Dense text fails SEO. Readers bounce. Google measures time-on-page. Short, clear
 | Meta description | 150–160 chars, keyword + hook |
 | H2 headers | Include secondary keywords naturally |
 | Keyword density | ~1–2% for primary keyword |
-| Internal links | 2–3 links to existing blog articles (see COMPANY.md for blog URL) |
+| Internal links | 2–4 links to existing blog articles — use judgment: more in longer articles, 2 in short focused pieces (see COMPANY.md for blog URL) |
 | External links | 2–4 per article — cite sources for statistics; link to official primary sources only |
 
 ---
@@ -1030,10 +1060,54 @@ Or in standard markdown (Next.js MDX handles target via the link renderer):
 - ✅ "Claude 3.5 Sonnet scores [49% on SWE-bench](https://www.swebench.com/)" 
 - ❌ "Many AI tools are growing quickly" ← no stat, no link needed
 
-### MDX Components (use these, not raw HTML)
+### MDX Components — STRICT ALLOWLIST
+
+> **CRITICAL: Using ANY component not in this list crashes the entire article page.**
+> The blog renderer (`src/app/blog/[slug]/page.tsx`) only registers the components below.
+> Unregistered components (e.g. `<FAQ>`, `<FAQItem>`, `<Tabs>`, `<Tab>`) cause a fatal
+> MDX parse error — the page shows "Oops — Something went wrong" for every visitor.
+> **NEVER invent component names. ONLY use what is listed here.**
+
+**Registered blog MDX components (complete list):**
+
+| Component | Usage |
+|-----------|-------|
+| `<Tip>` | Helpful tips (green) |
+| `<Note>` | Informational notes (blue) |
+| `<Warning>` | Caution/danger alerts (yellow/red) |
+| `<Info>` | General info callout |
+| `<Callout>` | Generic callout |
+| `<Steps>` + `<Step title="...">` | Numbered step-by-step instructions |
+| `<AccordionGroup>` + `<Accordion title="...">` | Collapsible sections — **USE FOR FAQs** |
+| `<CardGroup cols={N}>` + `<Card title="..." href="..." icon="...">` | Feature/link cards |
+| `<FeatureCardGroup>` + `<FeatureCard>` | Feature highlight cards |
+| `<CodeGroup>` + `<CodeTab>` | Tabbed code blocks |
+| `<Frame>` | Image frame wrapper |
+| `<InlineBlogCta />` | Manual CTA placement override |
 
 > Icon names in `<Card icon="...">` must be **PascalCase** Lucide names (`Database`, `Lock`, `Rocket`, `Globe`). Never use `Sparkles` — use `Bot`, `Cpu`, or `Wand2`. Lowercase icons silently fail.
 
+**FAQ sections MUST use `<AccordionGroup>` + `<Accordion>`:**
+```mdx
+<AccordionGroup>
+  <Accordion title="Should I use WSL2 or Docker Desktop?">
+    WSL2 is better for developers who want a full Linux environment...
+  </Accordion>
+  <Accordion title="Why can't I access localhost:18789?">
+    Either the gateway didn't start or Windows Firewall is blocking...
+  </Accordion>
+</AccordionGroup>
+```
+
+**NOT** `<FAQ>`, `<FAQItem>`, `<FAQGroup>`, or any other invented component — those crash the page.
+
+The blog's `extractFAQs()` function auto-generates FAQPage JSON-LD schema from two patterns:
+1. `### Question?` H3 headings (plain markdown)
+2. `<Accordion title="Question?">` components
+
+Both produce identical FAQ schema. Use `<Accordion>` for collapsible UI, or `### Question?` for simplicity.
+
+**Example usage of other components:**
 ```mdx
 <Tip>Helpful tip.</Tip>
 <Note>Note text.</Note>
@@ -1042,10 +1116,6 @@ Or in standard markdown (Next.js MDX handles target via the link renderer):
 <Steps>
   <Step title="First Step">Instructions.</Step>
 </Steps>
-
-<AccordionGroup>
-  <Accordion title="FAQ?">Answer.</Accordion>
-</AccordionGroup>
 
 <CardGroup cols={2}>
   <Card title="Feature" href="/docs/path" icon="Rocket">Description.</Card>
@@ -1091,6 +1161,8 @@ Live URL: `https://[company-website]/blog/[slug]` (see COMPANY.md for blog URL)
 
 ## Publishing Checklist
 
+- [ ] **ZERO unregistered MDX components** — search for `<FAQ`, `<FAQItem`, `<Tabs`, `<Tab` or any component not in the STRICT ALLOWLIST above. Unregistered components crash the page. FAQs must use `<AccordionGroup>` + `<Accordion title="...">` or plain `### Question?` headings.
+- [ ] **ZERO HTML COMMENTS** — search for `<!--` in your content. If ANY `<!-- ... -->` exists, the article will crash for every visitor. MDX v2 does not support HTML comments. `INLINE_IMAGE_*` comments must be processed by `process-inline-images.mjs` before publish. If you wrote directly to CMS, run `audit-fix-blog.mjs --fix-strip`.
 - [ ] `image_url:` in frontmatter — NOT `image:` or `cover_image:` (wrong fields silently ignored)
 - [ ] `image_url` value starts with `https://cdn.blink.new/` — if it starts with `[REDACTED]`, reconstruct the URL by replacing `[REDACTED]` with `https://cdn.blink.new`; NEVER publish with `[REDACTED]` in the URL
 - [ ] `scene_prompt` written in brief (centered, full-frame — NO dark left gradient), `generate_image()` called, uploaded via `cms_upload_asset`, `image_url:` is `https://cdn.blink.new/...`

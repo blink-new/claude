@@ -63,3 +63,32 @@ CTAs are **auto-injected** by the Blink blog rendering engine (reading progress 
 
 - Twitter/X: `https://x.com/blinkdotnew`
 - Discord: `https://discord.com/invite/2RjY7wP4a8`
+
+---
+
+## CTA Rules (Global — all markets)
+
+- **NEVER write manual CTA sections at the end of articles.** CTAs are auto-injected:
+  - Reading progress bar — fixed top bar, automatic
+  - Mid-article inline CTA — injected after the 3rd H2, automatic
+  - Bottom CTA section — shown after article content, automatic
+- Market auto-detected from article tags at render time
+- Use `<InlineBlogCta />` MDX component only if auto-injection position feels wrong
+
+---
+
+## Brand Language — Global Rules
+
+### Always
+- Specific numbers: "3 hours" not "quickly" · "78% of teams" not "many teams"
+- Real examples: terminal output, real commands, real errors
+- Honest tradeoffs: cost, limitation, when Blink is NOT the right choice
+- Plain words: "use" not "utilize" · "help" not "facilitate"
+- Short sentences: 15-25 words max
+
+### Never
+- "leverage", "utilize", "synergy", "game-changer", "paradigm", "seamlessly", "holistic", "robust"
+- "may", "might consider", "could potentially", "it's worth noting", "arguably"
+- Passive voice: "errors are tracked by the system" → "the system tracks errors"
+- Rhetorical questions as openers: "Have you ever wondered...?"
+- `## Conclusion` sections — end on FAQ or specific next action

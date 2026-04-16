@@ -245,16 +245,30 @@ Key structure:
    - ✅ `## What Is the ClawHub Supply Chain Attack?`
    - ❌ `## The ClawHub Supply Chain Attack`
 
-3. **FAQ section at end with ### question headings** — triggers FAQPage schema extraction
+3. **FAQ section at end** — triggers FAQPage schema extraction. Two valid formats:
+
+   **Option A — Accordion components (preferred, collapsible UI):**
+   ```mdx
+   <AccordionGroup>
+     <Accordion title="Is OpenClaw safe to use?">
+       OpenClaw is safe when properly configured...
+     </Accordion>
+     <Accordion title="How much does managed OpenClaw cost?">
+       Blink Claw starts at $22/mo (annual) all-in...
+     </Accordion>
+   </AccordionGroup>
+   ```
+
+   **Option B — Plain H3 headings (simple, also works):**
    ```markdown
-   ## Frequently Asked Questions
-   
    ### Is OpenClaw safe to use?
    OpenClaw is safe when properly configured...
-   
+
    ### How much does managed OpenClaw cost?
    Blink Claw starts at $22/mo (annual) all-in...
    ```
+
+   **NEVER use `<FAQ>`, `<FAQItem>`, or any invented component — crashes the page.**
 
 4. **Specific statistics with numbers** in every section
    - ✅ "63% of 42,000+ self-hosted instances run with insecure default configs"

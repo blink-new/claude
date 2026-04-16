@@ -41,19 +41,37 @@ One skill, one source of truth for AI-powered SEO article production. Configurab
 | `run seo` | Standard run — 5 articles across top 5 priority clusters |
 | `run seo 8 articles` | Extended run — 8 articles |
 | `run seo b7 sprint` | 5-6 "How to Build X" articles + 2-3 other priorities |
-| `run seo claude code focus` | Prioritise Market C clusters (C1-C6) |
+| `run seo claude code focus` | Prioritise Market C clusters (C1-C8) |
 | `run seo openclaw focus` | Prioritise Market A clusters (A7, A9, A1) |
 | `run seo vibe coding focus` | Prioritise Market B clusters (B2, B4, B7, B8, B9) |
+| `audit blog` | Scan all published articles for MDX-breaking issues (~30s) |
+| `fix blog` | Auto-fix all broken articles (strip HTML comments, fix images) |
 
 ---
 
-## Execution: read and run the orchestrator
+## Execution
 
-When invoked, immediately:
-
+### For `run seo` commands:
 1. Read `.cursor/skills/ai-seo-articles/prompts/ORCHESTRATOR.md` — the full 6-phase pipeline
 2. The orchestrator reads config files (Phase 0) before any other action
 3. Execute the orchestrator phases 0-6 exactly as written
+
+### For `audit blog`:
+```bash
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs
+```
+Lists all broken articles. Exit 0 = all clean, exit 2 = issues found.
+
+### For `fix blog`:
+```bash
+# Fast — strip HTML comments (recommended default):
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix-strip
+
+# Full — generate replacement images + strip comments:
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix
+```
+Scans all 200+ articles, auto-fixes broken ones, publishes the fixes.
+Re-run audit afterwards to confirm `Broken: 0`.
 
 ---
 
@@ -61,11 +79,14 @@ When invoked, immediately:
 
 | File | Contains |
 |---|---|
-| `config/blink/COMPANY.md` | Company name, website, blog URL, products, brand voice, key differentiators, CDN token |
-| `config/blink/MARKETS.md` | Three content markets (A/B/C), products per market, exact CTA strings, detection signals |
-| `config/blink/CLUSTERS.md` | All keyword clusters, Global Priority Stack, competitor intelligence per market, strategic rules |
-| `config/blink/COPY.md` | Exact CTA strings verbatim, pricing anchors, product advantage phrases, brand language dos/don'ts |
-| `config/blink/IMAGES.md` | CHARACTER ANCHOR, scene table by article type, 6 validated prompts, inline image system, CDN upload |
+| `config/blink/COMPANY.md` | Company identity, CDN config, global CTA rules, brand language dos/don'ts |
+| `config/blink/IMAGES.md` | CHARACTER ANCHOR, scene table by article type, 6 validated prompts, inline image system |
+| `config/blink/markets/openclaw/COPY.md` | Market A: CTAs, talking points, pricing anchors, competitor positioning |
+| `config/blink/markets/openclaw/CLUSTERS.md` | Market A: A1-A10 cluster definitions and keywords |
+| `config/blink/markets/vibe-coding/COPY.md` | Market B: CTAs, talking points, pricing anchors, competitor positioning |
+| `config/blink/markets/vibe-coding/CLUSTERS.md` | Market B: B1-B11 cluster definitions and keywords |
+| `config/blink/markets/cursor-claude/COPY.md` | Market C: CTAs, happy path, builder section template, style rules |
+| `config/blink/markets/cursor-claude/CLUSTERS.md` | Market C: C1-C8 cluster definitions and keywords |
 
 ---
 
@@ -74,15 +95,20 @@ When invoked, immediately:
 | Path | What it contains |
 |---|---|
 | `SKILL.md` | **This file.** Entry point with Active Project config section. |
-| `config/blink/COMPANY.md` | Company identity — name, URLs, products, brand voice, CDN config |
-| `config/blink/MARKETS.md` | Content markets A/B/C — products, CTAs, detection signals |
-| `config/blink/CLUSTERS.md` | Keyword clusters, Global Priority Stack, competitor intel |
-| `config/blink/COPY.md` | Exact CTA copy, pricing anchors, brand language rules |
-| `config/blink/IMAGES.md` | Clay character system, scene table, 6 example prompts, inline image system |
+| `config/blink/COMPANY.md` | Company identity, CDN, global brand + CTA rules |
+| `config/blink/IMAGES.md` | Clay character system, scene table, 6 example prompts |
+| `config/blink/markets/openclaw/COPY.md` | Market A copy: CTAs, talking points, pricing, competitors |
+| `config/blink/markets/openclaw/CLUSTERS.md` | Market A clusters: A1-A10 keywords and strategy |
+| `config/blink/markets/vibe-coding/COPY.md` | Market B copy: CTAs, talking points, pricing, competitors |
+| `config/blink/markets/vibe-coding/CLUSTERS.md` | Market B clusters: B1-B11 keywords and strategy |
+| `config/blink/markets/cursor-claude/COPY.md` | Market C copy: CTAs, happy path, builder template, style rules |
+| `config/blink/markets/cursor-claude/CLUSTERS.md` | Market C clusters: C1-C8 keywords and strategy |
 | `prompts/ORCHESTRATOR.md` | **The brain.** Generic 6-phase pipeline — loads config at Phase 0 |
 | `reference/ARTICLES.md` | **Writing standards.** Step 2 generic image section, article templates, blueprints A-E, style rules 1-10, SEO rules, frontmatter schema, publishing checklist |
 | `reference/GEO.md` | **GEO + technical SEO.** AI citation optimization, schema markup, robots.txt, sitemap, llms.txt, verification commands |
-| `scripts/process-inline-images.mjs` | **Run after writing.** Replaces INLINE_IMAGE comments with CDN-hosted images. Exit 0=ok, 2=no comments, 3=partial, 1=fatal |
+| `scripts/validate-draft.mjs` | **Run before publishing.** Validates a draft: frontmatter, images, MDX safety, word count, stats, links. Exit 0=pass, 2=warnings, 1=fail |
+| `scripts/process-inline-images.mjs` | **Run after writing.** Replaces INLINE_IMAGE comments with CDN-hosted images. Exit 0=processed, 2=no slots found, 1=fatal |
+| `scripts/audit-fix-blog.mjs` | **Blog health guard.** Scans all CMS articles for MDX-breaking patterns, bulk auto-fixes. Run after every SEO run. |
 | `scripts/audit-seo-health.sh` | **Technical audit.** Checks noindex, robots.txt, sitemap, schema, llms.txt, OG images |
 | `scripts/check-competitor-serps.sh` | **SERP monitoring.** Checks SERP position for key keywords |
 
@@ -102,6 +128,9 @@ When invoked, immediately:
 ## Quick Scripts
 
 ```bash
+# Validate a draft before publishing (checks frontmatter, images, MDX safety, links):
+node .cursor/skills/ai-seo-articles/scripts/validate-draft.mjs .todo/seo/drafts/DRAFT_[slug].mdx
+
 # Process inline images (run after writing, before publishing):
 node .cursor/skills/ai-seo-articles/scripts/process-inline-images.mjs .todo/seo/drafts/DRAFT_[slug].mdx
 
@@ -111,6 +140,11 @@ bash .cursor/skills/ai-seo-articles/scripts/audit-seo-health.sh http://localhost
 
 # SERP presence check:
 bash .cursor/skills/ai-seo-articles/scripts/check-competitor-serps.sh
+
+# Blog health audit (run after EVERY publish — mandatory Phase 5b gate):
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs              # audit: list broken articles
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix-strip  # fast fix: strip HTML comments
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix        # full fix: generate images + strip
 ```
 
 ---
@@ -124,6 +158,7 @@ bash .cursor/skills/ai-seo-articles/scripts/check-competitor-serps.sh
 - **No fabricated data**: invented stats or quotes → editor rejects, writer rewrites with sources
 - **Slug rules**: no year suffix (`-2026`). Timeless slugs. Exception: changelogs only
 - **No manual CTAs**: auto-injected by rendering engine. DO NOT write CTA sections.
+- **Zero HTML comments in published MDX**: `audit-fix-blog.mjs` must exit 0 (Broken: 0) before any run closes. HTML comments crash every page visitor. Note: `<!-- INLINE_IMAGE_* -->` slots are draft-only placeholders — the publish pipeline converts them to images before CMS. They must never appear in published content.
 
 ---
 

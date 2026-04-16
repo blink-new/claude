@@ -19,9 +19,11 @@
  *   node .cursor/skills/ai-seo-articles/scripts/process-inline-images.mjs <draft.mdx>
  *
  * Exit codes:
- *   0  Done — output is clean and safe to publish (images may or may not have succeeded)
+ *   0  Images processed — draft is clean and safe to publish
  *   1  Fatal error — file unreadable/unwritable (fix the path and retry)
- *   2  No INLINE_IMAGE comments found — nothing to do, draft is already clean
+ *   2  No INLINE_IMAGE slots found — writer likely skipped STEP 2c in the writer brief.
+ *      The draft publishes without inline images. Publisher should log IMAGES_MISSING.
+ *      This is a writer workflow error, not a script error.
  *
  * Note: There is NO exit 3 (partial success). The script always exits 0 for a
  * publishable file. Check the log output to see how many images succeeded.
@@ -240,6 +242,15 @@ async function main() {
 
   if (comments.length === 0) {
     let noCommentContent = content
+    // Warn loudly if this is a substantial draft (likely missing image slots due to writer skipping STEP 2c)
+    const wordCount = content.replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '').split(/\s+/).length
+    if (wordCount > 1000) {  // Only warn for substantial articles; short CVE/changelog articles legitimately have no inline images
+      console.error('⚠️  WARNING: No INLINE_IMAGE slots found in this draft.')
+      console.error('   This article will publish WITHOUT inline images.')
+      console.error('   Root cause: writer likely skipped STEP 2c (place image slots before writing body).')
+      console.error('   Fix: add 3 INLINE_IMAGE_CLAY or INLINE_IMAGE_REAL comments to the draft and re-run.')
+      console.error(`   Draft word count: ~${wordCount} words`)
+    }
     // Auto-fix slug-as-title even when no image comments present
     const { content: titleFixed, fixed: titleWasFixed } = fixTitleIfSlug(noCommentContent, draftPath)
     if (titleWasFixed) noCommentContent = titleFixed
@@ -247,12 +258,17 @@ async function main() {
     const { cleaned, stripped } = stripAllHtmlComments(noCommentContent)
     if (stripped > 0 || titleWasFixed) {
       writeFileSync(draftPath, cleaned, 'utf8')
-      console.log(`⚡ No INLINE_IMAGE comments. Fixed: title=${titleWasFixed}, HTML comments stripped=${stripped}. Draft is clean.`)
+      console.log(`⚡ No INLINE_IMAGE slots. Fixed: title=${titleWasFixed}, HTML comments stripped=${stripped}. Draft is clean.`)
     } else {
-      console.log('✓ No INLINE_IMAGE comments found — draft is already clean.')
+      console.log('ℹ No INLINE_IMAGE slots found — draft processed without inline images.')
     }
     process.exit(2)
   }
+
+  // Extract hero image URL from frontmatter to prevent inline image duplication
+  const heroUrlMatch = content.match(/^image_url:\s*"([^"]+)"/m)
+  const heroUrl = heroUrlMatch?.[1] || ''
+  if (heroUrl) console.log(`🖼️  Hero image: ${heroUrl.slice(0, 70)}...`)
 
   console.log(`📸 Found ${comments.length} INLINE_IMAGE comment(s). Processing...\n`)
 
@@ -283,6 +299,18 @@ async function main() {
       }
 
       if (!cdnUrl?.startsWith('https://cdn.blink.new/')) throw new Error(`Invalid CDN URL: ${cdnUrl}`)
+
+      // Dedup check: if this inline image matches the hero, it will look repetitive on the page
+      if (heroUrl && cdnUrl === heroUrl) {
+        console.log(`  ⚠ Generated image matches hero — regenerating with different scene`)
+        cdnUrl = await processClay(`close-up detail view: ${alt}. Different angle and composition from the main hero.`, alt)
+        if (heroUrl && cdnUrl === heroUrl) {
+          console.log(`  ⚠ Still matches hero — removing to avoid duplication`)
+          updated = updated.replace(comment.full, '')
+          removed++
+          continue
+        }
+      }
 
       const md = `![${alt}](${cdnUrl})`
       updated = updated.replace(comment.full, md)
@@ -316,7 +344,13 @@ async function main() {
   catch (err) { console.error(`✖ Cannot write "${draftPath}": ${err.message}`); process.exit(1) }
 
   console.log('─'.repeat(50))
-  console.log(`📊 ${succeeded} image(s) added  |  ${removed} removed (fallback)  |  ${stripped} HTML comment(s) swept`)
+  console.log(`📊 ${succeeded} image(s) added  |  ${removed} removed (failed)  |  ${stripped} HTML comment(s) swept`)
+  if (succeeded === 0 && comments.length > 0) {
+    console.error('⚠️  WARNING: All image generations failed — draft publishes without inline images.')
+    console.error('   Publisher: run the script once more. If still 0, log IMAGES_MISSING in manifest.')
+  } else if (succeeded < comments.length) {
+    console.log(`⚠️  ${comments.length - succeeded} image(s) failed — partial inline images in published article.`)
+  }
   console.log('✅ Draft is clean and safe to publish.')
   process.exit(0)
 }

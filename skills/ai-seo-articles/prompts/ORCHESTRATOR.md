@@ -16,11 +16,14 @@ a fleet of parallel subagents.
 Before starting ANYTHING, read these config files for the active project:
 
 ```
-.cursor/skills/ai-seo-articles/config/blink/COMPANY.md   — company identity, URLs, brand voice, CDN token
-.cursor/skills/ai-seo-articles/config/blink/MARKETS.md   — content markets, products, CTAs, detection signals
-.cursor/skills/ai-seo-articles/config/blink/CLUSTERS.md  — keyword clusters, priority stack, competitor intel
-.cursor/skills/ai-seo-articles/config/blink/COPY.md      — exact CTA strings, brand language, pricing anchors
-.cursor/skills/ai-seo-articles/config/blink/IMAGES.md    — clay character system, scene table, prompt templates
+.cursor/skills/ai-seo-articles/config/blink/COMPANY.md                    — identity, brand voice, CDN, global CTA/brand rules
+.cursor/skills/ai-seo-articles/config/blink/IMAGES.md                    — clay character system, scene table, prompt templates
+.cursor/skills/ai-seo-articles/config/blink/markets/openclaw/COPY.md     — Market A: CTAs, talking points, pricing, competitor positioning
+.cursor/skills/ai-seo-articles/config/blink/markets/openclaw/CLUSTERS.md — Market A: A1-A10 cluster definitions, keywords
+.cursor/skills/ai-seo-articles/config/blink/markets/vibe-coding/COPY.md     — Market B: CTAs, talking points, pricing, competitor positioning
+.cursor/skills/ai-seo-articles/config/blink/markets/vibe-coding/CLUSTERS.md — Market B: B1-B11 cluster definitions, keywords
+.cursor/skills/ai-seo-articles/config/blink/markets/cursor-claude/COPY.md     — Market C: CTAs, happy path, builder template, style rules
+.cursor/skills/ai-seo-articles/config/blink/markets/cursor-claude/CLUSTERS.md — Market C: C1-C8 cluster definitions, keywords
 ```
 
 Then read:
@@ -29,9 +32,10 @@ Then read:
 .todo/seo/MANIFEST.md      — run history, dedup guard
 ```
 
-From MARKETS.md: understand the three markets, their products, and their exact CTA strings.
-From CLUSTERS.md: read the Global Priority Stack.
-From COPY.md: memorize the exact CTA copy for each market — you will use it verbatim in all worker prompts.
+From each market's COPY.md: understand the product, conversion goal, exact CTA strings, and talking points.
+From each market's CLUSTERS.md: read the cluster definitions and keywords for briefing research workers.
+From SEO_PROFILE.md: read the Global Priority Stack (cross-market priority with live scores).
+Memorize the exact CTA copy for each market — you will use it verbatim in all worker prompts.
 
 ---
 
@@ -59,9 +63,11 @@ web_search("openclaw competitor launched")
 # Market B — Vibe Coding / App Builder
 web_search("lovable bolt replit update 2026")
 web_search("vibe coding news 2026")
-# Market C — Claude Code / AI Coding
+# Market C — Claude Code / Cursor / AI Coding
 web_search("claude code update 2026")
+web_search("cursor editor update 2026")
 web_search("agentic coding news 2026")
+web_search("cursor mcp 2026")
 ```
 
 If a freshness event is found → it becomes Priority 1 for this run regardless of the stack.
@@ -69,7 +75,7 @@ If a freshness event is found → it becomes Priority 1 for this run regardless 
 ### Make the strategic call
 Following the Priority Stack in SEO_PROFILE.md, decide:
 - Which **markets and clusters** get resources? (top 2-3 from stack)
-- What is the **resource split** per cluster? (70% to top 3, 25% to 4-7, 5% to 8+)
+- What is the **resource split** per cluster? (50% to P1-P2, 30% to P3-P5, 20% to P6+)
 - What **type of output** per cluster? (new articles / improvements / technical fix)
 - Is there a **freshness event** that overrides the stack?
 - What **M2 backlink action** should be flagged this run?
@@ -86,6 +92,13 @@ For each article you plan to write, dispatch a research subagent with this promp
 RESEARCH BRIEF for: [article topic]
 
 Your job: Produce a detailed content brief for one blog post.
+
+0. DEDUP CHECK — do this before any research:
+   Run: cms_grep(query: "[primary keyword]")
+   Check: .todo/seo/MANIFEST.md — search for this keyword or a similar slug.
+   If an article on this exact keyword already exists (published or recently drafted):
+   → Stop. Write "SKIPPED — duplicate keyword: [slug of existing article]" to .todo/seo/briefs/BRIEF_[slug].md
+   → Do not produce a brief. Notify orchestrator.
 
 1. Run these SERP queries and capture top 3 results for each:
    - web_search("[primary keyword]")
@@ -105,8 +118,8 @@ Your job: Produce a detailed content brief for one blog post.
    Get: coding benchmark scores, pricing per 1M tokens, context window sizes.
 
 6. Produce a BRIEF with:
-   - market: [A|B|C] (see MARKETS.md for market detection signals)
-   - article-type: [how-to-build | team-role | replace-saas | ai-model-comparison | customer-story | openclaw-use-case | vibe-coding | claude-code]
+   - market: [A|B|C] (see markets/[market]/COPY.md for detection signals and product details)
+   - article-type: [how-to-build | team-role | replace-saas | ai-model-comparison | customer-story | openclaw-use-case | vibe-coding | claude-code | cursor-setup | blink-cloud-discovery]
    - slug: [recommended-slug — timeless, no year suffix — NEVER use -2026, -2025 for evergreen content]
    - Primary keyword (exact)
    - Secondary keywords (3-5)
@@ -121,7 +134,7 @@ Your job: Produce a detailed content brief for one blog post.
    - Image scene type for hero image (pick from: Tutorial/Guide, Debugging/Fix, Comparison/Detective,
      Vibe Coding/Astronaut, PM/Business, Security/CVE, Product/Release, AI Agent, Replace SaaS,
      How to Build — see config/blink/IMAGES.md for scene table)
-   - CTA to use: [exact CTA string from COPY.md for this market]
+   - CTA to use: [exact CTA string from markets/[market]/COPY.md for this market — use verbatim]
 
 Write the brief to: .todo/seo/briefs/BRIEF_[slug].md
 ```
@@ -139,18 +152,32 @@ Each writer gets exactly one brief and produces one complete article.
 WRITER BRIEF:
 
 Read: .todo/seo/briefs/BRIEF_[slug].md
-Read: .cursor/skills/ai-seo-articles/reference/ARTICLES.md (mandatory — writing standards)
-Read: .cursor/skills/ai-seo-articles/reference/GEO.md (mandatory — GEO standards)
-Read: .cursor/skills/ai-seo-articles/config/blink/COPY.md (mandatory — exact CTAs, brand language)
-Read: .cursor/skills/ai-seo-articles/config/blink/IMAGES.md (mandatory — inline image system)
+Read: .cursor/skills/ai-seo-articles/reference/ARTICLES.md  (mandatory — writing standards + MDX ALLOWLIST)
+Read: .cursor/skills/ai-seo-articles/reference/GEO.md       (mandatory — GEO standards)
+Read: .cursor/skills/ai-seo-articles/config/blink/COMPANY.md (mandatory — global brand voice + CTA rules)
+Read: .cursor/skills/ai-seo-articles/config/blink/IMAGES.md  (mandatory — inline image system)
+Read: .cursor/skills/ai-seo-articles/config/blink/markets/[your-market]/COPY.md
+  The brief (first read above) tells you the market. Use it to pick the right file:
+  → Market A (openclaw):      markets/openclaw/COPY.md
+  → Market B (vibe-coding):   markets/vibe-coding/COPY.md
+  → Market C (cursor-claude): markets/cursor-claude/COPY.md
+  This single file has everything market-specific: CTA strings, talking points, pricing anchors,
+  product mention style, what not to say, competitor positioning, and (for Market C) the full
+  builder section template and happy path commands.
 
 Your job: Write a complete, publication-ready MDX blog post.
+
+## MDX COMPONENT RULE (read ARTICLES.md "STRICT ALLOWLIST" section — violation = page crash)
+ONLY use components registered in the blog renderer. The COMPLETE list is in ARTICLES.md.
+Key rule: FAQ sections use `<AccordionGroup>` + `<Accordion title="Question?">`.
+NEVER use `<FAQ>`, `<FAQItem>`, `<FAQGroup>`, `<Tabs>`, or any invented component name.
+Unregistered components crash the entire article page for every visitor.
 
 ## STEP 0 — Identify Market and Article Type (do this FIRST)
 
 From the brief, determine:
-- MARKET: A | B | C (see MARKETS.md for product and CTA mapping)
-- ARTICLE TYPE: how-to-build | team-role | replace-saas | ai-model-comparison | customer-story | openclaw-use-case | vibe-coding | claude-code
+- MARKET: A | B | C (see markets/[your-market]/COPY.md for product and CTA mapping)
+- ARTICLE TYPE: how-to-build | team-role | replace-saas | ai-model-comparison | customer-story | openclaw-use-case | vibe-coding | claude-code | cursor-setup | blink-cloud-discovery
 
 This determines your CTA, structure, and word count.
 
@@ -170,15 +197,28 @@ Design your structure based on that evidence:
 4. **FAQ**: include if PAA results were rich. Skip for narrative/story content.
 5. **Close**: end on a specific next action, command, or concrete step — never a "## Conclusion" section.
 
-**CTAs — use the exact copy from COPY.md (auto-injected — do NOT write a manual CTA section):**
-- Market A → [exact Market A CTA from COPY.md]
-- Market B → [exact Market B CTA from COPY.md]
-- Market C → [exact Market C CTA from COPY.md]
+**CTAs — use exact copy (auto-injected — do NOT write a manual CTA section)
+  (Exact strings from markets/[your-market]/COPY.md — use verbatim):**
+- Market A → "Run OpenClaw without the hassle — Blink Claw handles everything from $22/mo → blink.new/claw"
+- Market B → "Build this with Blink — database, auth, and hosting included. No config needed → blink.new"
+  (Verify current copy in COPY.md — these are subject to change)
+- Market C (C1–C6, tutorial/agentic) → "Building with Claude Code or Cursor? Deploy on Blink — database, auth, and hosting included → blink.new"
+- Market C (C7–C8, Cursor setup / Blink Cloud discovery) → "Add full-stack infrastructure to your coding agent in one command: npx skills add blink-new/blink-plugin → blink.new/cloud"
+  (If unsure which cluster applies, check COPY.md for the full Market C CTA guidance)
 
 **Product mention style by market:**
-- Market A/B: minimum 3 Blink-specific product advantages in body (see COPY.md for examples)
+- Market A/B: minimum 3 Blink-specific product advantages in body (see your market's COPY.md for exact phrases)
   After each infrastructure step: "With Blink, [step] is handled automatically — no [Supabase/Vercel/config] needed."
-- Market C: write objectively for 90% of article. The product appears once in a "For [audience]" section (see MARKETS.md).
+- Market C: write objectively for 90% of article. MANDATORY: every Market C article must include a
+  "## Build This With Your AI Agent" section (or topic-appropriate heading).
+  This section must contain:
+    1. `npx skills add blink-new/blink-plugin` and `blink login` — both commands, verbatim
+    2. A specific agent prompt tailored to the article topic (e.g. "Build me a [topic] app and host it on Blink")
+    3. A link to https://blink.new/cloud
+  Placement: last substantive section before the FAQ. If no FAQ, it is the final section before
+  the closing action/command. Never omit it — it is required for all Market C articles.
+  For C7–C8: Blink Cloud IS the topic — 3+ product mentions expected throughout body, not just in this section.
+  See markets/cursor-claude/COPY.md for the full template and phrasing examples.
 
 **Customer stories (B11) hard stop:** Only dispatch if real data exists (company name, specific outcomes, real quotes). Never fabricate.
 **AI model comparisons (B10):** Be genuinely objective. Company appears once ("for builders" section + CTA). Never bias the comparison.
@@ -188,7 +228,9 @@ Design your structure based on that evidence:
 Hard non-negotiables:
 - OPENING: Direct, substantive answer or key insight in the first 80 words
 - DATA: Every claim backed by specific numbers. 3-5+ data points.
-- INTERNAL LINKS: 2-3 links to existing blog posts (see COMPANY.md for blog URL)
+- INTERNAL LINKS: 2-4 links to existing blog posts — use judgment; more in longer articles, minimum 2 always (see COMPANY.md for blog URL)
+  Market C specific: link https://blink.new/cloud in the builder section; link
+  https://blink.new/docs/cloud/tools/skills on the `npx skills add` line
 - EXTERNAL LINKS: 2-4 citations to authoritative sources (GitHub, major publications, official pricing, benchmarks)
 - PRODUCT VOICE: Apply product mention style by market (see above and COPY.md)
 - FRONTMATTER: ALL fields required:
@@ -197,6 +239,7 @@ Hard non-negotiables:
   - category: "[exact canonical value]"
   - tags: ["...", "..."]
   - image_url: "PENDING_CDN_UPLOAD"
+  - sort_order: 0
   - status: "published"
 - CTA: DO NOT write a manual CTA section — auto-injected by the rendering engine
 
@@ -221,14 +264,60 @@ Every sentence and paragraph must pass:
 
 Target reading level: Flesch-Kincaid Grade Level 7–9.
 
-## STEP 5 — Add 3 inline image placeholders (REQUIRED — editor checks for these)
+## STEP 2c — Place 2-3 Inline Image Slots (DO THIS BEFORE WRITING BODY PROSE)
 
-See IMAGES.md for the comment formats and scene selector. Insert at:
-- Spot 1: after the intro bold answer, before the 1st H2
-- Spot 2: after the most data-heavy section
-- Spot 3: after the comparison table or final tool section, before the FAQ
+⚠️ **CRITICAL RULE: INLINE_IMAGE markers are NOT HTML comments.**
+They are required image slots processed by the publish pipeline into real CDN images.
+The "no HTML comments" validation rule targets stray editorial notes — it does NOT apply
+to INLINE_IMAGE_CLAY or INLINE_IMAGE_REAL markers. Writing them is REQUIRED.
+Not writing them scores 0/10 on Images and blocks publication.
 
-Write to: .todo/seo/drafts/DRAFT_[slug].mdx
+**Before writing the body, decide on 2-3 image positions based on your planned sections:**
+(3 for articles 1000+ words; 2 acceptable for focused shorter pieces)
+- **Slot 1** — after the intro paragraph, before the 1st H2: illustrates the pain point or core claim
+- **Slot 2** — after the most data-heavy section: makes abstract numbers visual
+- **Slot 3** — after the comparison table or final section, before the FAQ: shows the outcome or resolution
+
+Slot 1 MUST show a DIFFERENT scene from the hero. Hero = article scope. Slot 1 = the specific problem.
+
+**Write the placeholder comment directly into the draft at each position now:**
+
+For a clay character illustration:
+```
+<!-- INLINE_IMAGE_CLAY: [scene description from IMAGES.md clay scene selector] | alt="[one-sentence caption: what it shows + why relevant]" -->
+```
+
+For a real photo search:
+```
+<!-- INLINE_IMAGE_REAL: query="[specific, searchable image query]" | alt="[one-sentence caption]" -->
+```
+
+See IMAGES.md for the clay scene selector table and real query guidelines.
+
+## STEP 3 — Write the Article Body
+
+Now write the full MDX article body, following the structure you designed in STEP 1.
+
+Your INLINE_IMAGE slot comments from STEP 2c are already embedded in the draft at the right positions.
+Write the prose AROUND them — do not remove or move the comments.
+
+Requirements while writing:
+- Apply STEP 2b readability rules to every paragraph as you write
+- Use exact CTA copy from your market's COPY.md (markets/[your-market]/COPY.md) when a product mention is needed
+- For Market C articles: include the "## Build This With Your AI Agent" section as the last
+  substantive section before the FAQ (if no FAQ, place it as the final section before closing)
+- End on a specific action or command — NEVER a `## Conclusion` section
+- Do NOT write a manual CTA section (auto-injected by rendering engine)
+
+**Self-check before saving:**
+Count `<!-- INLINE_IMAGE` occurrences in the draft:
+- 3 → full 10/10 Images score ✅ (recommended for 1000+ word articles)
+- 2 → 7/10 ✅ (acceptable for focused shorter articles)
+- 0–1 → 0/10 ❌ — cannot reach the 90-point publish gate; add missing slots now
+
+When the full article is written and self-check passes, save to:
+`.todo/seo/drafts/DRAFT_[slug].mdx`
+
 Do NOT publish yet.
 ```
 
@@ -260,7 +349,11 @@ Every article goes through a scored revision loop. **Nothing ships below 90/110.
 ### The Scoring Rubric (110 points total)
 
 ```
-STEP 0 — Read the article's frontmatter/brief to identify: market (A/B/C) and article-type.
+STEP 0 — Read the article's frontmatter/brief to identify:
+- Market: A | B | C
+- Article type (from frontmatter or brief)
+- For Market C: identify sub-cluster — C1-C6 (tutorial/agentic) OR C7-C8 (Cursor setup/Blink Cloud)
+  This distinction determines the Product Specificity scoring rule (see rubric below).
 This determines how to apply the type-specific rules below.
 
 GEO Signals (40 pts):
@@ -289,7 +382,7 @@ Content Quality (30 pts):
 
 SEO Structure (20 pts):
   [5]  Meta description ≤160 chars, keyword in first 10 words
-  [4]  Internal links to 2-3 existing blog posts (verified, no dead links)
+  [4]  Internal links to 2-4 existing blog posts (verified, no dead links)
   [4]  External links: 2-4 citations to approved-tier sources (GitHub, major publications,
        official pricing/docs, benchmark sites). 0 pts if zero external links.
   [4]  image_url in frontmatter (any CDN URL or PENDING_CDN_UPLOAD placeholder)
@@ -300,15 +393,18 @@ SEO Structure (20 pts):
        - A manually written CTA section with wrong product → 0 pts
 
 Inline Images (10 pts):
-  [10] Exactly 3 INLINE_IMAGE_REAL or INLINE_IMAGE_CLAY comments present in the draft.
-       Award 10 pts for 3 comments. 7 pts for 2. 3 pts for 1. 0 pts for none.
-       Comments must use the exact format the parser expects (see IMAGES.md).
-       Malformed comments count as 0.
+  [10] Inline image slots present in the draft (INLINE_IMAGE_REAL or INLINE_IMAGE_CLAY).
+       Award 10 pts for 3 slots. 7 pts for 2 (acceptable for short articles). 0 pts for 0–1.
+       Slots must use the exact format the parser expects (see IMAGES.md).
+       Malformed comments count as 0. Missing = route back to writer if score would drop below 90.
 
 Product Specificity (10 pts):
-  [5]  For Market A/B: product advantages (from COPY.md) mentioned 3+ times in body
+  [5]  For Market A/B: product advantages (from markets/[market]/COPY.md) mentioned 3+ times in body
        (not counting CTA). See COPY.md for exact examples and phrases.
-       Market C: product mentioned once in the market-appropriate section (see MARKETS.md) = full 5 pts
+       Market C (C1–C6): "## Build This With Your AI Agent" section present AND contains
+       both `npx skills add blink-new/blink-plugin` and a specific agent prompt = full 5 pts.
+       Section absent or missing the two commands = 0 pts (route back to writer, do not publish).
+       Market C (C7–C8): 3+ product advantages in body + builder section present = full 5 pts.
   [5]  No TypeScript-mistake drift: article content serves users who would become customers.
        Flag if article is purely generic technical education with no path to product.
        Exception: B10 AI Model Comparisons are explicitly traffic-only — full 5 pts if product
@@ -358,7 +454,11 @@ ITERATION 2:
   If score < 90: another REVISION_REQUEST, another writer pass.
 
 MAXIMUM 3 ITERATIONS.
-  If still < 90 after 3 iterations: log as HELD, do not publish.
+  If still < 90 after 3 iterations:
+  - Write "# HELD — score [N]/110, reason: [main failure]" at top of draft
+  - Append to MANIFEST.md: ACTION: held | TARGET: [slug] | REASON: [main failure]
+  - Delete: .todo/seo/drafts/DRAFT_[slug].mdx, REVISION_[slug].md, briefs/BRIEF_[slug].md
+  - Do not publish. Article is dropped; orchestrator re-prioritises the cluster next run.
 ```
 
 ### Editor Worker Prompt
@@ -367,7 +467,7 @@ MAXIMUM 3 ITERATIONS.
 EDITOR WORKER:
 
 Read: .todo/seo/drafts/DRAFT_[slug].mdx
-Read: .cursor/skills/ai-seo-articles/config/blink/COPY.md (for CTA and product specificity checks)
+Read: .cursor/skills/ai-seo-articles/config/blink/markets/[article-market]/COPY.md (for CTA and product specificity checks — use the market identified in STEP 0)
 Identify from the draft's frontmatter: market (A/B/C) and article-type.
 
 Score each category using the FULL RUBRIC from Phase 4.
@@ -442,30 +542,61 @@ For each APPROVED draft in .todo/seo/drafts/ (those with "# SCORE:" line showing
    node .cursor/skills/ai-seo-articles/scripts/process-inline-images.mjs .todo/seo/drafts/DRAFT_[slug].mdx
 
    Self-healing behaviour:
-   • Tries to generate/search each image and replace INLINE_IMAGE comments with real CDN images
-   • If an image fails: removes the comment entirely (no image is better than a crashed page)
-   • Final safety sweep: strips ANY remaining HTML <!-- --> comments from the file
+   • Replaces INLINE_IMAGE_CLAY and INLINE_IMAGE_REAL slots with real CDN-hosted images
+   • If an image fails: removes the slot comment (no image is better than a crashed page)
+   • Final safety sweep: strips any remaining HTML comments that slipped through
    • ALWAYS writes clean, publishable MDX — exit 0 means safe to publish
 
-   Exit codes (only two meaningful outcomes):
-   - 0 → draft is clean and safe to publish (proceed to step 5)
-   - 2 → no INLINE_IMAGE comments found — draft already clean (proceed to step 5)
-   - 1 → fatal file I/O error (bad path) — fix path and retry
+   Exit codes:
+   - 0 → images processed, draft is clean and safe to publish
+   - 2 → no INLINE_IMAGE slots found — writer skipped STEP 2c (see reliability note below)
+   - 1 → fatal file I/O error — fix path and retry
 
-   Rule: exit 0 or exit 2 both mean PUBLISH. Never skip this step. Never stay stuck.
+   ⚠️ EXIT 2 RELIABILITY NOTE: Exit 2 means the writer did NOT place INLINE_IMAGE slots.
+   The article will publish without inline images. Log IMAGES_MISSING in manifest.
+   Do not block publication — a live article without images beats a blocked draft.
 
-5. Publish to CMS:
-   cms_write_file path="blog/[slug].mdx" content="[full MDX content]" publish=true
+   Reliability check after exit 0:
+   Count occurrences of "cdn.blink.new/cms/mcp-uploads" in the processed content.
+   If count = 0 (all image generations failed), run the script ONCE MORE.
+   If still 0 after the second run: publish anyway, log IMAGES_MISSING in manifest.
+
+5. PRE-PUBLISH VALIDATION (run the validator script — do not manually check):
+   node .cursor/skills/ai-seo-articles/scripts/validate-draft.mjs .todo/seo/drafts/DRAFT_[slug].mdx
+
+   Exit codes:
+   - 0 → PASS — all checks clean; proceed to publish
+   - 2 → WARN — warnings only (review counts/links); safe to publish after review
+   - 1 → FAIL — blockers present; fix before publishing
+
+   The script checks: frontmatter completeness, hero image generated, sort_order present,
+   valid category, score marker stripped, unprocessed INLINE_IMAGE slots, inline image count,
+   stray HTML comments, {target= attributes, banned MDX components, ## Conclusion section,
+   word count, statistics count, internal/external link counts.
+
+   ⚠️ Do NOT publish if exit 1. Common FAIL causes:
+   - image_url still PENDING_CDN_UPLOAD → re-run step 2
+   - unprocessed INLINE_IMAGE slots → re-run step 4
+   - stray HTML comments → strip manually
+   - banned MDX component → replace with AccordionGroup/Steps
+
+   Also strip the score line before cms_write_file:
+   Remove any line starting with `# SCORE:` from content (renders as raw H1 if left in).
+
+   cms_write_file path="blog/[slug].mdx" content="[full MDX content, score line removed]" publish=true
    ONLY proceed if response shows status: "published"
    If publish fails: log STATUS: draft-failed in manifest. Do not retry.
 
-6. Confirm published, then delete draft:
+6. Confirm published, then clean up all artefacts for this article:
    rm .todo/seo/drafts/DRAFT_[slug].mdx
-   rm .todo/seo/drafts/REVISION_[slug].md (if exists)
+   rm .todo/seo/drafts/REVISION_[slug].md  (if exists)
+   rm .todo/seo/briefs/BRIEF_[slug].md     (brief served its purpose)
 
-7. After all articles published:
-   git commit -m "feat(blog): [N] new articles — [cluster names]"
+7. After all articles published, commit only SEO metadata files:
+   git add .todo/seo/MANIFEST.md .todo/seo/RUN_STRATEGY.md .todo/seo/SEO_PROFILE.md
+   git commit -m "seo: [N] new articles — [cluster names]"
    git push origin main
+   Note: do NOT git add draft files, brief files, or revision files — only metadata.
 
 8. Append to MANIFEST.md for each article:
    ## [YYYY-MM-DD]
@@ -477,6 +608,43 @@ For each APPROVED draft in .todo/seo/drafts/ (those with "# SCORE:" line showing
 ```
 
 ---
+
+
+---
+
+## Phase 5b: Post-Publish Verification Gate (MANDATORY — blocks Phase 6)
+
+⚠️ **This is the last line of defense. DO NOT SKIP IT. DO NOT PROCEED TO PHASE 6 UNTIL IT PASSES.**
+
+After ALL articles are published in Phase 5, run the blog health audit:
+
+```bash
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs
+```
+
+**If `Broken: 0`** → proceed to Phase 6.
+
+**If ANY broken articles found** → fix them immediately:
+```bash
+# Fast (strip HTML comments, no image generation):
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix-strip
+
+# Full (generate images + strip comments):
+node .cursor/skills/ai-seo-articles/scripts/audit-fix-blog.mjs --fix
+```
+
+Then re-run the audit to confirm `Broken: 0` before proceeding.
+
+**What the script catches:**
+- `<!-- INLINE_IMAGE_* -->` HTML comments (crash entire page — MDX v2 does not support HTML comments)
+- `<!-- any -->` HTML comments (same — all HTML comments crash MDX)
+- `PENDING_CDN_UPLOAD` in image_url (broken hero image)
+- `{target="_blank"}` link attributes (MDX expression parse error)
+
+**Why this gate exists:** Phase 5 Step 4 (`process-inline-images.mjs`) operates on LOCAL
+draft files. When agents write directly to CMS via `cms_write_file` (bypassing the local
+file system), the script is never invoked. This gate validates CMS content directly,
+regardless of how it was written. The audit scans all 200+ articles in ~30 seconds.
 
 ## Phase 6: Orchestrator Closes the Loop (YOU again)
 
