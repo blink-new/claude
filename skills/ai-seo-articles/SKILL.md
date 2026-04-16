@@ -26,11 +26,15 @@ One skill, one source of truth for AI-powered SEO article production. Configurab
 | **Runtime data** | `.todo/seo/` (SEO_PROFILE.md, MANIFEST.md, briefs/, drafts/) |
 
 **To use this skill for a different project:**
-1. Create `.cursor/skills/ai-seo-articles/config/[project-name]/`
-2. Copy `config/blink/` as a template, update all 5 files (COMPANY, MARKETS, CLUSTERS, COPY, IMAGES)
-3. Update the "Active Project" table above to point to `config/[project-name]/`
-4. Create `.todo/seo-[project-name]/` with SEO_PROFILE.md, MANIFEST.md, briefs/, drafts/
-5. Update ORCHESTRATOR.md Phase 0 config file paths to reference the new config and runtime paths
+1. Create `config/[project-name]/` with subdirectories:
+   - `markets/market-a/COPY.md` + `CLUSTERS.md`
+   - `markets/market-b/COPY.md` + `CLUSTERS.md`
+   - `markets/market-c/COPY.md` + `CLUSTERS.md` (add more markets as needed)
+   - `COMPANY.md` (identity, CDN, brand voice, global rules)
+   - `IMAGES.md` (character system + scene table)
+2. Update the "Active Project" table above to point to `config/[project-name]/`
+3. Create `.todo/seo-[project-name]/` with SEO_PROFILE.md, MANIFEST.md, briefs/, drafts/
+4. Update ORCHESTRATOR.md Phase 0 config file paths to reference the new config and runtime paths
 
 ---
 
@@ -105,7 +109,7 @@ Re-run audit afterwards to confirm `Broken: 0`.
 | `config/blink/markets/cursor-claude/CLUSTERS.md` | Market C clusters: C1-C8 keywords and strategy |
 | `prompts/ORCHESTRATOR.md` | **The brain.** Generic 6-phase pipeline — loads config at Phase 0 |
 | `reference/VOICE.md` | **Writing voice.** 10 writing rules with real examples + blueprint cheat sheet. Read second (after brief, before SOP.md). |
-| `reference/SOP.md` | **Writing standards.** Article templates, blueprints A-E, full style rules, SEO rules, MDX allowlist, frontmatter schema, publishing checklist |
+| `reference/SOP.md` | **SOP.** Production workflow, article type templates, frontmatter schema, MDX component allowlist, SEO/external-link rules, publishing checklist |
 | `reference/GEO.md` | **GEO + technical SEO.** AI citation optimization, schema markup, robots.txt, sitemap, llms.txt, verification commands |
 | `scripts/validate-draft.mjs` | **Run before publishing.** Validates a draft: frontmatter, images, MDX safety, word count, stats, links. Exit 0=pass, 2=warnings, 1=fail |
 | `scripts/process-inline-images.mjs` | **Run after writing.** Replaces INLINE_IMAGE comments with CDN-hosted images. Exit 0=processed, 2=no slots found, 1=fatal |

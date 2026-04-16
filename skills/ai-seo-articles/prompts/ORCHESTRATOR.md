@@ -333,6 +333,10 @@ While writers are working, dispatch a technical worker:
 ```
 TECHNICAL WORKER:
 
+Read: .cursor/skills/ai-seo-articles/reference/GEO.md
+  Understand what a healthy robots.txt, sitemap, schema, and llms.txt look like
+  before running the audit. Fix failures against the standards in GEO.md.
+
 Run: bash .cursor/skills/ai-seo-articles/scripts/audit-seo-health.sh
 
 Identify the top 1-2 failures or high-impact warnings.
@@ -468,7 +472,8 @@ MAXIMUM 3 ITERATIONS.
 EDITOR WORKER:
 
 Read: .todo/seo/drafts/DRAFT_[slug].mdx
-Read: .cursor/skills/ai-seo-articles/config/blink/markets/[article-market]/COPY.md (for CTA and product specificity checks — use the market identified in STEP 0)
+Read: .cursor/skills/ai-seo-articles/reference/VOICE.md (writing quality benchmarks — use Rules 1-10 for readability scoring)
+Read: .cursor/skills/ai-seo-articles/config/blink/markets/[article-market]/COPY.md (CTA and product specificity — use the market identified in STEP 0)
 Identify from the draft's frontmatter: market (A/B/C) and article-type.
 
 Score each category using the FULL RUBRIC from Phase 4.
