@@ -114,10 +114,14 @@ missingFm.length === 0
   ? pass('Frontmatter complete', REQUIRED_FRONTMATTER.join(', '))
   : fail('Frontmatter incomplete', `Missing: ${missingFm.join(', ')}`)
 
-// 2. image_url not a placeholder
-fmObj.image_url === 'PENDING_CDN_UPLOAD'
-  ? fail('Hero image not generated', 'image_url is still PENDING_CDN_UPLOAD — generate before publishing')
-  : pass('Hero image present', fmObj.image_url?.slice(0, 60) || '(set)')
+// 2. image_url not a placeholder and not ephemeral
+if (fmObj.image_url === 'PENDING_CDN_UPLOAD') {
+  fail('Hero image not generated', 'image_url is still PENDING_CDN_UPLOAD — generate before publishing')
+} else if (fmObj.image_url?.includes('/ai-generated/')) {
+  fail('Hero image uses ephemeral URL', 'image_url contains cdn.blink.new/ai-generated/ — this expires in days. Re-host via cms_upload_asset → use the cms/mcp-uploads/ URL instead.')
+} else {
+  pass('Hero image present', fmObj.image_url?.slice(0, 60) || '(set)')
+}
 
 // 3. sort_order is 0 (not missing)
 'sort_order' in fmObj
@@ -145,6 +149,16 @@ const inlineImageCount = (body.match(/!\[.*?\]\(https:\/\/cdn\.blink\.new\/cms\/
 if (inlineImageCount >= 2) pass(`Inline images: ${inlineImageCount}`, '2-3 is the target range ✅')
 else if (inlineImageCount === 1) warn(`Inline images: ${inlineImageCount}`, 'Only 1 inline image — consider adding a 2nd for longer articles')
 else warn(`Inline images: ${inlineImageCount}`, 'No inline images — will score 0/10 on Images rubric (max 100/110)')
+
+// 7b. Detect ephemeral ai-generated/ URLs embedded in body images
+const ephemeralInBody = (body.match(/!\[.*?\]\(https:\/\/cdn\.blink\.new\/ai-generated\//g) ?? []).length
+if (ephemeralInBody > 0) {
+  fail(`Ephemeral image URLs in body: ${ephemeralInBody}`,
+    'Body contains cdn.blink.new/ai-generated/ URLs — these expire within days and will break. ' +
+    'Re-generate each via generate_image then immediately re-host via cms_upload_asset → use cms/mcp-uploads/ URL.')
+} else {
+  pass('No ephemeral image URLs', 'All body images on cms/mcp-uploads/ (permanent)')
+}
 
 // 8. Stray HTML comments (outside code fences)
 const strayComments = countOutsideFences(body, '<!--', fences)

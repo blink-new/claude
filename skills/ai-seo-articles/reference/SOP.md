@@ -90,8 +90,11 @@ generate_image(
 
 Then upload to CDN:
 ```javascript
-cms_upload_asset(url: "[fal.media URL returned by generate_image]", filename: "[slug]-hero.webp", alt_text: "[Article Title]")
+cms_upload_asset(url: "[URL returned by generate_image]", filename: "[slug]-hero.webp", alt_text: "[Article Title]")
 // Returns: { "public_url": "https://cdn.blink.new/cms/mcp-uploads/[slug]-hero.webp" }
+// ⚠️ generate_image returns cdn.blink.new/ai-generated/... — EPHEMERAL, expires in days.
+//    You MUST call cms_upload_asset even though URL looks like cdn.blink.new.
+//    Only cms/mcp-uploads/ URLs are permanent. Never embed ai-generated/ in articles.
 // If shows [REDACTED]/..., reconstruct: https://cdn.blink.new + path-after-[REDACTED]
 ```
 
