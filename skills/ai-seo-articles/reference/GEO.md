@@ -494,7 +494,7 @@ curl -s https://blink.new/blog/llms.txt | grep -c "blink.new/blog/"
 | `src/app/blog/page.tsx` | Must NOT have `robots: { index: false }` |
 | `src/app/blog/[slug]/page.tsx` | BlogPosting + BreadcrumbList + FAQPage schema |
 | `src/app/layout.tsx` | Organization + WebSite schema in `<head>` |
-| `.cursor/skills/ai-seo-articles/reference/ARTICLES.md` | Clay character image system, hero image generation, inline images |
+| `.cursor/skills/ai-seo-articles/reference/SOP.md` | Clay character image system, hero image generation, inline images |
 
 ---
 
@@ -503,7 +503,7 @@ curl -s https://blink.new/blog/llms.txt | grep -c "blink.new/blog/"
 All blog posts need a 1200×630px branded OG image. The generator is at
 `scripts/generate-blog-og-images.mjs`.
 
-**Scene prompts → `.cursor/skills/ai-seo-articles/reference/ARTICLES.md` (Step 2a) is the source of truth.**
+**Scene prompts → `.cursor/skills/ai-seo-articles/reference/SOP.md` (Step 2a) is the source of truth.**
 That file contains the full character system, the scene-by-article-type table, and six
 proven example prompts. Do not write scene prompts from scratch — use those templates.
 
@@ -511,7 +511,7 @@ proven example prompts. Do not write scene prompts from scratch — use those te
 - Character: clay 3D builder hero, blue lightning hoodie, same face in every image
 - Costume changes per article type (detective coat, space suit, blazer, hood-up, etc.)
 - Left side of every image is kept darker/clear for the text compositor overlay
-- See `.cursor/skills/ai-seo-articles/reference/ARTICLES.md → Step 2a` for the complete scene table and examples
+- See `.cursor/skills/ai-seo-articles/reference/SOP.md → Step 2a` for the complete scene table and examples
 
 **Never commit image files to the repo. Always upload to Blink CDN and use the CDN URL.**
 
@@ -532,7 +532,7 @@ proven example prompts. Do not write scene prompts from scratch — use those te
 > `echo "$CDN_URL" | grep "^https://cdn.blink.new"` — must match.
 
 ```bash
-# 1. Generate scene image (see .cursor/skills/ai-seo-articles/reference/ARTICLES.md Step 2a for prompts):
+# 1. Generate scene image (see .cursor/skills/ai-seo-articles/reference/SOP.md Step 2a for prompts):
 generate_image(prompt: "[CHARACTER ANCHOR] NEW SCENE: ...", aspect_ratio: "16:9", output_format: "webp")
 
 # 2. Re-host on Blink CDN:

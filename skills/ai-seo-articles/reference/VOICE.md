@@ -1,11 +1,11 @@
 ---
 name: voice
-description: Writing voice calibration for SEO articles. Read this BEFORE ARTICLES.md. These rules determine whether an article is enjoyable to read. Technical structure, MDX, and SEO rules are in ARTICLES.md.
+description: Writing voice calibration for SEO articles. Read this BEFORE SOP.md. These rules determine whether an article is enjoyable to read. Technical structure, MDX, and SEO rules are in SOP.md.
 ---
 
 # Writing Voice
 
-Read this immediately after the brief — before ARTICLES.md. These 10 rules determine article quality. Agents absorb the most recently read content most strongly, so these must be fresh when writing starts.
+Read this immediately after the brief — before SOP.md. These 10 rules determine article quality. Agents absorb the most recently read content most strongly, so these must be fresh when writing starts.
 
 **Reference articles this voice is calibrated on:**
 - PostHog "testing AI agents" — narrative arc, precise technical depth

@@ -152,12 +152,10 @@ Each writer gets exactly one brief and produces one complete article.
 WRITER BRIEF:
 
 Read: .todo/seo/briefs/BRIEF_[slug].md
-Read: .cursor/skills/ai-seo-articles/reference/VOICE.md     (mandatory — READ THIS SECOND, before ARTICLES.md)
-     These 10 writing rules must be fresh in your context when you start writing.
-     They determine whether the article is sharp, credible, and enjoyable to read.
-Read: .cursor/skills/ai-seo-articles/reference/ARTICLES.md  (mandatory — writing standards + MDX ALLOWLIST)
-Read: .cursor/skills/ai-seo-articles/reference/GEO.md       (mandatory — GEO standards)
-Read: .cursor/skills/ai-seo-articles/config/blink/COMPANY.md (mandatory — global brand voice + CTA rules)
+Read: .cursor/skills/ai-seo-articles/reference/VOICE.md     (mandatory — READ THIS SECOND)
+     10 writing rules with real examples. Read immediately — keeps voice sharp in context.
+Read: .cursor/skills/ai-seo-articles/reference/SOP.md       (mandatory — SOP: workflow, templates, MDX spec, frontmatter, publishing checklist)
+Read: .cursor/skills/ai-seo-articles/config/blink/COMPANY.md (mandatory — brand voice + global rules)
 Read: .cursor/skills/ai-seo-articles/config/blink/IMAGES.md  (mandatory — inline image system)
 Read: .cursor/skills/ai-seo-articles/config/blink/markets/[your-market]/COPY.md
   The brief (first read above) tells you the market. Use it to pick the right file:
@@ -170,8 +168,8 @@ Read: .cursor/skills/ai-seo-articles/config/blink/markets/[your-market]/COPY.md
 
 Your job: Write a complete, publication-ready MDX blog post.
 
-## MDX COMPONENT RULE (read ARTICLES.md "STRICT ALLOWLIST" section — violation = page crash)
-ONLY use components registered in the blog renderer. The COMPLETE list is in ARTICLES.md.
+## MDX COMPONENT RULE (read SOP.md "STRICT ALLOWLIST" section — violation = page crash)
+ONLY use components registered in the blog renderer. The COMPLETE list is in SOP.md.
 Key rule: FAQ sections use `<AccordionGroup>` + `<Accordion title="Question?">`.
 NEVER use `<FAQ>`, `<FAQItem>`, `<FAQGroup>`, `<Tabs>`, or any invented component name.
 Unregistered components crash the entire article page for every visitor.
@@ -252,7 +250,7 @@ NEVER use: tutorial, Tutorials, Guides, comparison, comparisons, use-cases, Use 
 
 ## STEP 2b — Apply Readability Rules (NON-NEGOTIABLE)
 
-Read: `.cursor/skills/ai-seo-articles/reference/ARTICLES.md` Writing Style Standards section.
+Refer to VOICE.md rules already read — apply them as you write.
 
 Every sentence and paragraph must pass:
 1. **Sentence length**: Maximum 25 words
