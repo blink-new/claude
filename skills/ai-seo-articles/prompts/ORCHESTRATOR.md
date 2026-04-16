@@ -44,7 +44,7 @@ Memorize the exact CTA copy for each market — you will use it verbatim in all 
 After loading config, build a complete picture of where we stand:
 
 ### Read the Global Priority Stack
-From the CLUSTERS.md config + SEO_PROFILE.md live scores.
+From SEO_PROFILE.md — the Global Priority Stack with live scores.
 Follow the Priority Stack exactly — it is the human-defined strategic direction.
 Only deviate if you detect a 🔴 URGENT cluster (freshness event: new CVE, competitor launch, etc.)
 
@@ -152,6 +152,9 @@ Each writer gets exactly one brief and produces one complete article.
 WRITER BRIEF:
 
 Read: .todo/seo/briefs/BRIEF_[slug].md
+Read: .cursor/skills/ai-seo-articles/reference/VOICE.md     (mandatory — READ THIS SECOND, before ARTICLES.md)
+     These 10 writing rules must be fresh in your context when you start writing.
+     They determine whether the article is sharp, credible, and enjoyable to read.
 Read: .cursor/skills/ai-seo-articles/reference/ARTICLES.md  (mandatory — writing standards + MDX ALLOWLIST)
 Read: .cursor/skills/ai-seo-articles/reference/GEO.md       (mandatory — GEO standards)
 Read: .cursor/skills/ai-seo-articles/config/blink/COMPANY.md (mandatory — global brand voice + CTA rules)
@@ -552,14 +555,11 @@ For each APPROVED draft in .todo/seo/drafts/ (those with "# SCORE:" line showing
    - 2 → no INLINE_IMAGE slots found — writer skipped STEP 2c (see reliability note below)
    - 1 → fatal file I/O error — fix path and retry
 
-   ⚠️ EXIT 2 RELIABILITY NOTE: Exit 2 means the writer did NOT place INLINE_IMAGE slots.
-   The article will publish without inline images. Log IMAGES_MISSING in manifest.
-   Do not block publication — a live article without images beats a blocked draft.
+   ⚠️ EXIT 2 NOTE: Writer skipped STEP 2c — article will publish without inline images.
+   Log IMAGES_MISSING in manifest. Do not block publication.
 
-   Reliability check after exit 0:
-   Count occurrences of "cdn.blink.new/cms/mcp-uploads" in the processed content.
-   If count = 0 (all image generations failed), run the script ONCE MORE.
-   If still 0 after the second run: publish anyway, log IMAGES_MISSING in manifest.
+   After exit 0 or 2: proceed to step 5 (validate-draft.mjs).
+   The validator shows the inline image count — if it shows 0, run this script once more.
 
 5. PRE-PUBLISH VALIDATION (run the validator script — do not manually check):
    node .cursor/skills/ai-seo-articles/scripts/validate-draft.mjs .todo/seo/drafts/DRAFT_[slug].mdx
@@ -709,7 +709,7 @@ Default: **Standard mode** unless B7 has fewer than 10 articles (then B7 Sprint)
 
 11. **Prevent TypeScript-mistake drift.** Before dispatching a writer, ask: "Does this article serve a user who would naturally become a customer?" If not, check that the article type is either B10 (explicitly traffic-only) or has a clear product-fit angle.
 
-12. **Pricing consistency.** Use pricing anchors exactly as specified in COPY.md.
+12. **Pricing consistency.** Use pricing anchors exactly as specified in your market's COPY.md (markets/[market]/COPY.md).
 
 ---
 

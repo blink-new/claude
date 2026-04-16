@@ -104,7 +104,8 @@ Re-run audit afterwards to confirm `Broken: 0`.
 | `config/blink/markets/cursor-claude/COPY.md` | Market C copy: CTAs, happy path, builder template, style rules |
 | `config/blink/markets/cursor-claude/CLUSTERS.md` | Market C clusters: C1-C8 keywords and strategy |
 | `prompts/ORCHESTRATOR.md` | **The brain.** Generic 6-phase pipeline — loads config at Phase 0 |
-| `reference/ARTICLES.md` | **Writing standards.** Step 2 generic image section, article templates, blueprints A-E, style rules 1-10, SEO rules, frontmatter schema, publishing checklist |
+| `reference/VOICE.md` | **Writing voice.** 10 writing rules with real examples + blueprint cheat sheet. Read second (after brief, before ARTICLES.md). |
+| `reference/ARTICLES.md` | **Writing standards.** Article templates, blueprints A-E, full style rules, SEO rules, MDX allowlist, frontmatter schema, publishing checklist |
 | `reference/GEO.md` | **GEO + technical SEO.** AI citation optimization, schema markup, robots.txt, sitemap, llms.txt, verification commands |
 | `scripts/validate-draft.mjs` | **Run before publishing.** Validates a draft: frontmatter, images, MDX safety, word count, stats, links. Exit 0=pass, 2=warnings, 1=fail |
 | `scripts/process-inline-images.mjs` | **Run after writing.** Replaces INLINE_IMAGE comments with CDN-hosted images. Exit 0=processed, 2=no slots found, 1=fatal |

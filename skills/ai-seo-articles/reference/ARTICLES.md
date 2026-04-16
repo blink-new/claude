@@ -551,6 +551,9 @@ No FAQ. No Conclusion.]
 
 ## Writing Style Standards (MANDATORY — Editorial Voice Calibrated on Real Examples)
 
+> **Writers: read `reference/VOICE.md` first** — it condenses these rules into 120 lines, fresh in context.
+> This section is the full reference for deeper reading and editor review.
+
 **Reference articles — study these before writing:**
 - https://posthog.com/blog/testing-ai-agents — narrative arc, "life of an agent" structure, practical depth
 - https://posthog.com/blog/standup-bot-revenge — personal stakes, humor, "I'll be honest" credibility moves
