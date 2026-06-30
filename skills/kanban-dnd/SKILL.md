@@ -177,20 +177,39 @@ import { snapCenterToCursor } from "@dnd-kit/modifiers";
 </DragOverlay>
 ```
 
-### 6. Sensor Configuration
+### 6. Sensor Configuration — instant drag, mobile-scroll friendly
+
+**Use a `distance` constraint, never a `delay`.** A `distance` constraint starts
+the drag the instant the pointer moves a few px — dragging feels immediate, and
+a plain click (no movement) still falls through to the card's `onClick`. A
+`delay` constraint forces the user to *hold* before the card becomes draggable,
+**and a quick flick before the delay elapses cancels the drag entirely** — the
+card won't move at all. This is a very common "I can't drag unless I hold first"
+bug.
 
 ```typescript
+// ✅ Instant on mouse, still scrolls on touch.
+// MouseSensor (mouse only) + TouchSensor (touch only) beats a single
+// PointerSensor, which can't both start instantly on mouse AND let a finger
+// swipe scroll the board on mobile.
 const sensors = useSensors(
-  useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 5,  // 5px movement before drag activates
-    },
+  useSensor(MouseSensor, {
+    activationConstraint: { distance: 4 }, // drag starts after ~4px, no hold
+  }),
+  useSensor(TouchSensor, {
+    // A short press-and-hold on touch so a vertical swipe scrolls the board
+    // instead of grabbing a card. Touch is the one place a small delay is right.
+    activationConstraint: { delay: 200, tolerance: 8 },
   }),
   useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
   })
 );
 ```
+
+If you don't need mobile scrolling, a single `PointerSensor` with
+`{ distance: 4 }` is fine and also instant. The rule that matters: **distance,
+not delay.**
 
 ### 7. Visual Feedback States
 
@@ -205,6 +224,162 @@ const [activeOverColumn, setActiveOverColumn] = useState<string | null>(null);
   isDragging={!!activeCard}
 />
 ```
+
+### 8. Within-Column Reordering & Sortable Columns (advanced)
+
+The patterns above cover cross-column moves with `useDraggable`. If you also
+need to **reorder cards within a column** and/or **reorder the columns
+themselves**, switch to `useSortable` + nested `SortableContext` (all inside one
+`DndContext`):
+
+```typescript
+<SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+  {columns.map((col) => <Column key={col.id} column={col} />)}
+</SortableContext>
+
+// Inside each Column, its cards get their own vertical context:
+<SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+  {cards.map((c) => <Card key={c.id} card={c} />)}
+</SortableContext>
+```
+
+In `onDragEnd`, branch on `active.data.current.type` (`"column"` vs `"card"`) to
+decide whether you're reordering columns or moving a card.
+
+**Gotcha — a sortable column is ALSO a drop target; don't register both.**
+`useSortable` already makes the node droppable. If you additionally call
+`useDroppable({ id: column.id })` on the same column you register **two
+droppables with the same id**, which corrupts collision detection (cards stop
+dropping reliably). Use `useSortable` alone — it gives you `setNodeRef` (drop
+target), `attributes`/`listeners` (drag handle), and `isOver`:
+
+```typescript
+// ✅ One registration is both the card drop target and the column drag source
+const { setNodeRef, attributes, listeners, transform, transition, isOver } =
+  useSortable({ id: column.id, data: { type: "column", columnId: column.id } });
+// ❌ Do NOT also do: useDroppable({ id: column.id })
+```
+
+**Drop indicator: a line on the hovered card, not a persistent gap.** Render a
+thin insertion line on the single card the pointer is over (`isOver`), placed
+above or below it based on the dragged item's index vs this card's index. Don't
+rely on the sortable's shifting gap alone — a crisp line reads far better and
+appears only where it's relevant.
+
+```typescript
+const { isOver, active, index } = useSortable({ id: card.id, data: { ... } });
+const showIndicator = isOver && active?.id !== card.id;
+let above = false, below = false;
+if (showIndicator) {
+  if (active?.data.current?.columnId !== card.columnId) {
+    above = true; // cross-column: insert before the hovered card
+  } else {
+    const activeIndex = active?.data.current?.sortable?.index ?? -1;
+    above = activeIndex > index;             // dragging up → line above
+    below = activeIndex < index && activeIndex !== -1; // dragging down → below
+  }
+}
+// Card root must be `relative`. Lines are absolutely positioned so DOM order
+// doesn't matter:
+{above && <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-primary z-10" />}
+{below && <div className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full bg-primary z-10" />}
+// Dragged original is just dimmed in place:
+className={cn("relative", isDragging && "opacity-30 z-50")}
+```
+
+**The "card reverts then snaps into place on release" flash** is almost always
+a missing `dropAnimation={null}` on the `DragOverlay` (see #5). The default drop
+animation flies the floating clone back to the original slot before the list
+settles into the new order. Always set `dropAnimation={null}`.
+
+**Reveal drag handles on hover.** A persistent grip (⠿) is visual noise. Put
+`group/col` on the column root and show the handle only on hover:
+`opacity-0 group-hover/col:opacity-100`.
+
+**Dragging a column? Render the WHOLE column in the overlay — with _static_ card
+clones.** The overlay should preview the header *and* its cards so the user
+drags a faithful copy, not just the title. But do **not** render your real
+`useSortable` card component inside the overlay: the cards are still mounted in
+the list, so you'd register duplicate sortable ids and corrupt measuring/
+collision. Render lightweight static clones (plain divs with the card's look),
+clipped to the column's max height:
+
+```typescript
+<DragOverlay dropAnimation={null}>
+  {activeColumn ? (
+    <div className="w-[272px] rotate-[2deg] rounded-xl border bg-muted/95 p-2.5 shadow-xl ...">
+      <Header name={activeColumn.name} count={cards.length} />
+      <div className="flex max-h-[440px] flex-col gap-2 overflow-hidden">
+        {cards.map((c) => (
+          <div key={c.id} className="rounded-lg border bg-card px-3 py-2.5">
+            {c.title}            {/* static clone — NOT <SortableCard/> */}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : activeCard ? (
+    <Card card={activeCard} isDragging />
+  ) : null}
+</DragOverlay>
+```
+
+### 9. Reading column items from the cache in `onDragEnd` (gotcha)
+
+To compute the new order on drop you often read a column's items out of a React
+Query cache. **Do not reconstruct the exact query key** — the column was likely
+fetched with extra params (`limit`, sort, `includeX`, …) and a hand-built key
+won't match, so `getQueryData` returns `undefined` and the reorder **silently
+does nothing** (a classic "drag works in some columns but not others" bug). Read
+cache-key-agnostically — scan every list query and keep the ones scoped to that
+column:
+
+```typescript
+// ❌ Misses the cache if the real query was { columnId, limit: 200 }
+const items = queryClient.getQueryData(itemKeys.list({ columnId }));
+
+// ✅ Match by the column field, ignore other filter params
+function getColumnItems(columnId: string): Item[] {
+  const byId = new Map<string, Item>();
+  for (const [key, data] of queryClient.getQueriesData<Item[]>({
+    queryKey: itemKeys.lists(),
+  })) {
+    const filters = (key as unknown[])[2] as { columnId?: string } | undefined;
+    if (data && filters?.columnId === columnId) {
+      for (const it of data) if (!byId.has(it.id)) byId.set(it.id, it);
+    }
+  }
+  return [...byId.values()];
+}
+```
+
+### 10. Undoable drag operations
+
+To make drags `Cmd+Z`-able, record an inverse command on each successful
+move/reorder. The non-obvious part: **a cross-column move must restore the
+previous order of EVERY bucket it touched — the source AND the destination —
+not just the destination.** Restoring only the destination leaves the card in
+its new column, so undo *appears to do nothing*.
+
+```typescript
+// Capture the *pre-move* order of every affected bucket: the destination
+// plus each source column a card moved out of.
+record({
+  label: "Move card",
+  undo: async () => {
+    for (const [columnId, order] of Object.entries(prevOrders)) {
+      // Restoring a source column (whose saved order still includes the moved
+      // card) sends the card home; restoring the destination drops it.
+      await api.reorder({ columnId, itemIds: order });
+    }
+  },
+  redo: async () => api.reorder({ columnId: destColumnId, itemIds: newOrder }),
+});
+```
+
+Record inside the **mutation hook**, not each call site, so every entry point
+(drag, keyboard shortcut, menu) becomes undoable through one place. Have
+undo/redo call the API **directly** (not the recording hook) so applying history
+never records new entries.
 
 ## Complete Event Handlers
 
@@ -368,6 +543,39 @@ const targetColumnId = findTargetColumnId(over.id);
 </Card>
 ```
 
+### ❌ `delay`-based activation on mouse
+
+```typescript
+// WRONG - the card only drags after a hold, and a quick flick is cancelled
+useSensor(PointerSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
+```
+
+### ✅ `distance`-based activation on mouse
+
+```typescript
+// CORRECT - drag starts instantly on a few px of movement; click still works
+useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
+```
+
+### ❌ Reconstructing the exact query key to read column items on drop
+
+```typescript
+// WRONG - won't match a cache fetched with extra params (limit/sort/…)
+const items = queryClient.getQueryData(itemKeys.list({ columnId })); // undefined
+```
+
+### ✅ Read the cache by matching the column field across all list queries
+
+See pattern #9 (`getColumnItems`) — silently-failing reorders are almost always this.
+
+### ❌ Registering a separate `useDroppable` on a `useSortable` column
+
+```typescript
+// WRONG - two droppables share column.id, breaking collision detection
+useSortable({ id: column.id, ... });
+useDroppable({ id: column.id }); // duplicate id!
+```
+
 ## Optimistic Updates with React Query
 
 ```typescript
@@ -439,13 +647,19 @@ src/
 ## Checklist
 
 - [ ] Installed `@dnd-kit/core`, `@dnd-kit/modifiers`, `@dnd-kit/utilities`
+- [ ] Sensors use a **`distance`** activation constraint, never `delay` (instant drag)
+- [ ] `MouseSensor` (distance) + `TouchSensor` (delay) if the board must scroll on mobile
 - [ ] Custom collision detection prioritizes columns
-- [ ] Columns use `useDroppable` with `data.type: "column"`
-- [ ] Cards use `useDraggable` (NOT `useSortable`)
+- [ ] Columns use `useDroppable` with `data.type: "column"` (or `useSortable` if columns reorder)
+- [ ] Cards use `useDraggable` for cross-column only; `useSortable` + `SortableContext` if reordering within a column
+- [ ] A `useSortable` column does NOT also register a separate `useDroppable` (duplicate id)
 - [ ] `findTargetColumnId` resolves both column and card drop targets
+- [ ] Column items read from the cache **cache-key-agnostically** in `onDragEnd` (not a reconstructed key)
 - [ ] DragOverlay uses `snapCenterToCursor` modifier
-- [ ] DragOverlay has `dropAnimation={null}`
+- [ ] DragOverlay has `dropAnimation={null}` (else the card "reverts" then snaps on release)
+- [ ] Within-column drop shows an insertion **line on the hovered card** (`isOver`), not a persistent gap
 - [ ] DragOverlay wrapper has fixed width matching card width
 - [ ] Cards have `touch-none select-none cursor-grab` classes
 - [ ] Visual feedback for `isOver` and `isDragging` states
 - [ ] Optimistic updates with rollback on error
+- [ ] Undoable moves restore **every** affected bucket's prior order (source + destination)

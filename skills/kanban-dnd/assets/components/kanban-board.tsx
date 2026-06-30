@@ -5,7 +5,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -50,12 +51,15 @@ export function KanbanBoard({
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeOverColumn, setActiveOverColumn] = useState<string | null>(null);
 
-  // Sensors with small distance threshold for responsive feel
+  // Instant drag on a few px of movement (distance, never delay). Splitting
+  // MouseSensor (distance) from TouchSensor (press-and-hold) keeps the board
+  // scrollable on mobile while a quick flick drags immediately on desktop.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 4 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
