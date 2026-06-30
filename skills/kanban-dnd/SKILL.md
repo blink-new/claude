@@ -292,9 +292,45 @@ a missing `dropAnimation={null}` on the `DragOverlay` (see #5). The default drop
 animation flies the floating clone back to the original slot before the list
 settles into the new order. Always set `dropAnimation={null}`.
 
-**Reveal drag handles on hover.** A persistent grip (⠿) is visual noise. Put
-`group/col` on the column root and show the handle only on hover:
-`opacity-0 group-hover/col:opacity-100`.
+**Reveal drag handles on hover — but collapse their _width_, not just their
+opacity.** A persistent grip (⠿) is visual noise, so show it only on hover with
+`group/col` on the column root. The trap: `opacity-0 group-hover/col:opacity-100`
+alone still lays the handle out — it keeps its width *and* the flex `gap` next to
+it — so the title sits permanently indented by a phantom gutter even while the
+grip is invisible. (Absolutely-positioning the handle instead just moves the
+problem: now it overlaps the title or hangs off the column edge.)
+
+What you actually want:
+
+```
+idle  → [no space][Title]            handle reserves nothing, title flush
+hover → [⠿ space ][Title]            handle expands in-flow, title slides right
+```
+
+Achieve it by collapsing the handle to **zero width** when idle and expanding it
+on hover, and **drop the flex `gap`** on the header (a `gap` is applied even
+beside a zero-width child) — let the handle own its margin so it only appears on
+hover:
+
+```tsx
+{/* header: NO `gap` — the handle manages its own spacing */}
+<div className="flex items-center px-1">
+  <button
+    {...attributes} {...listeners}
+    className="flex w-0 shrink-0 items-center overflow-hidden opacity-0
+               transition-all duration-150
+               group-hover/col:mr-1 group-hover/col:w-4 group-hover/col:opacity-100
+               cursor-grab active:cursor-grabbing touch-none"
+  >
+    <GripVertical className="h-4 w-4 shrink-0" />
+  </button>
+  <span className="font-semibold">{name}</span>
+  <span className="ml-2 …">{count}</span>   {/* space the rest explicitly */}
+</div>
+```
+
+Transitioning `w-0 → w-4` (plus `mr`) makes the title slide right smoothly as
+the grip fades in, with the idle state perfectly flush against the cards below.
 
 **Dragging a column? Render the WHOLE column in the overlay — with _static_ card
 clones.** The overlay should preview the header *and* its cards so the user
