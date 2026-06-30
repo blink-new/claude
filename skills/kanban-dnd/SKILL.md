@@ -459,13 +459,24 @@ isOver && "bg-primary/5 ring-2 ring-primary/20 ring-inset"
 
 ### Empty Column State
 
+Render the drop placeholder **only during an active drag**. An idle empty
+column must take up **no** space — don't reserve a permanent "Drag here" box;
+the column's own "add" affordance is enough. Showing a persistent placeholder
+is a common eyesore that makes idle boards look cluttered.
+
 ```typescript
-<div className={cn(
-  "border-2 border-dashed rounded-lg",
-  isOver ? "border-primary/40 bg-primary/5" : "border-border/50"
-)}>
-  <p>{isDragging ? "Drop here" : "Drag items here"}</p>
-</div>
+{/* ✅ Only while a card is being dragged. Idle empty column collapses. */}
+{isDragging && (
+  <div className={cn(
+    "rounded-lg border-2 border-dashed px-2.5 py-4 text-center",
+    isOver ? "border-primary/40 bg-primary/5" : "border-border/50"
+  )}>
+    Drop here
+  </div>
+)}
+
+{/* ❌ Don't: a permanent box that reserves space when nothing is dragging */}
+// <div className="border-2 border-dashed ...">Drag items here</div>
 ```
 
 ## Common Mistakes to Avoid
@@ -676,6 +687,7 @@ src/
 - [ ] DragOverlay uses `snapCenterToCursor` modifier
 - [ ] DragOverlay has `dropAnimation={null}` (else the card "reverts" then snaps on release)
 - [ ] Within-column drop shows an insertion **line on the hovered card** (`isOver`), not a persistent gap
+- [ ] Empty-column drop placeholder renders **only during a drag** — idle empty columns take up no space
 - [ ] DragOverlay wrapper has fixed width matching card width
 - [ ] Cards have `touch-none select-none cursor-grab` classes
 - [ ] Visual feedback for `isOver` and `isDragging` states
