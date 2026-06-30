@@ -576,6 +576,24 @@ useSortable({ id: column.id, ... });
 useDroppable({ id: column.id }); // duplicate id!
 ```
 
+### ❌ `KeyboardSensor` on focusable cards that also handle Enter/Space
+
+After a mouse drag, dnd-kit leaves DOM focus on the dragged card. The
+`KeyboardSensor`'s default activator is **Space/Enter**, so it treats the next
+Space/Enter on that focused card as "start dragging" — pressing Enter for some
+*other* shortcut accidentally re-grabs the card into a dragged state. If your
+cards are focusable and your app binds Enter/Space elsewhere, drop the
+`KeyboardSensor` and provide keyboard reordering via explicit shortcuts (move
+up/down, defer, …) — or remap its `keyboardCodes`.
+
+```typescript
+// ✅ Mouse + touch only; no accidental Enter/Space drags
+const sensors = useSensors(
+  useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+  useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+);
+```
+
 ## Optimistic Updates with React Query
 
 ```typescript
