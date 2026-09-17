@@ -1,3 +1,11 @@
+/*
+ * Tailwind v3 format (HSL triplets + tailwind.config.ts mapping).
+ *
+ * `npx shadcn@latest add sidebar` now installs the Tailwind v4 registry, which uses raw colour
+ * values plus an `@theme inline` block in globals.css and NO tailwind.config.ts. Check which
+ * Tailwind you are on before copying this file — see the CSS Variables section of SKILL.md for the
+ * v4 version. Mixing the two leaves every sidebar colour unresolved.
+ */
 /* =============================================================================
    SIDEBAR CSS VARIABLES
    Add these to your globals.css inside the :root and .dark selectors

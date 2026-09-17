@@ -103,6 +103,10 @@ readonly: false
 - `resend-inbound-emails`: Email inbox with Resend
 - `railway-storage`: S3-compatible storage setup
 - `nextjs-16-proxy`: Next.js 16 proxy convention
+- `brand-kit`: Logo, wordmark, favicon and app icons generated from one SVG path
+- `product-screenshots`: Real screenshots of your own app for marketing pages
+- `og-images`: Per-page social preview cards with next/og
+- `conversation-sidebar`: Claude-desktop-style list sidebar for chats, sessions and documents
 - Plus more specialized skills
 
 ### Skill Format

@@ -1,3 +1,13 @@
+/**
+ * PATCH components/ui/sidebar.tsx FIRST — shadcn ships two collapsed-mode bugs this file cannot fix:
+ *
+ *   1. SidebarGroupLabel: add `group-data-[collapsible=icon]:pointer-events-none` next to the
+ *      existing `opacity-0`, or invisible section labels steal hover from the icon above them.
+ *   2. SidebarContent: `group-data-[collapsible=icon]:overflow-x-clip` instead of `overflow-hidden`,
+ *      and `overflow-clip` in the sidebarMenuButtonVariants base, or focus shifts the icon column.
+ *
+ * See "Collapsed Mode: Fix These Three Before You Ship" in SKILL.md.
+ */
 'use client'
 
 import { useState } from 'react'
@@ -43,12 +53,16 @@ function WorkspaceSwitcher() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <SidebarMenuButton size="lg" className={cn("w-full cursor-pointer", collapsed && "justify-center")}>
-          {/* Workspace avatar — hides on sidebar hover when collapsed (replaced by expand btn) */}
-          <div className={cn(
-            "flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0",
-            collapsed && "group-hover/sidebar:hidden"
-          )}>
+        {/*
+          The WHOLE trigger hides on hover when collapsed. Hiding only the avatar inside it leaves
+          this button mounted under the ExpandButton, where it silently eats the click.
+          Pure CSS, not a `collapsed &&` branch: a JS branch flashes on hydration.
+        */}
+        <SidebarMenuButton
+          size="lg"
+          className="w-full cursor-pointer group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:group-hover/sidebar:hidden"
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
             {initial}
           </div>
           {!collapsed && (
@@ -189,7 +203,7 @@ function RecentItems() {
 /**
  * Hidden by default. Shows on sidebar hover when collapsed.
  * Replaces the workspace avatar (which has group-hover/sidebar:hidden).
- * Both are h-7 w-7 for zero layout shift on swap.
+ * Both are size-8 (32px) for zero layout shift on swap.
  */
 function ExpandButton() {
   const { toggleSidebar, state } = useSidebar()
@@ -200,7 +214,7 @@ function ExpandButton() {
       <TooltipTrigger asChild>
         <button
           onClick={(e) => { e.stopPropagation(); toggleSidebar() }}
-          className="hidden group-hover/sidebar:flex items-center justify-center h-7 w-7 rounded-md bg-accent text-foreground cursor-pointer hover:bg-accent/80 transition-colors shrink-0"
+          className="hidden size-8 shrink-0 items-center justify-center rounded-md bg-accent text-foreground transition-colors group-hover/sidebar:flex hover:bg-accent/80 cursor-pointer"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
@@ -227,7 +241,7 @@ function CollapseToggle() {
       <TooltipTrigger asChild>
         <button
           onClick={toggleSidebar}
-          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
         >
           <PanelLeftOpen className="h-4 w-4 rotate-180" />
         </button>

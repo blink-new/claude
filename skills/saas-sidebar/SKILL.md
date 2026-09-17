@@ -1,6 +1,6 @@
 ---
 name: saas-sidebar
-description: Build a modern, collapsible sidebar for SaaS dashboards following the ChatGPT/Notion design pattern
+description: Build a collapsible SaaS dashboard sidebar, side nav or app shell with shadcn/ui — icon-only mode, hover-swap expand button, tooltips, mobile sheet and persisted state. Use when building or fixing dashboard navigation, or when a collapsed or minimized sidebar misbehaves: wrong hover target, hover highlighting the wrong row, icons shifting sideways, dead click areas, the sidebar not collapsing, or the collapse button in the wrong place.
 ---
 
 # SaaS Collapsible Sidebar
@@ -13,13 +13,103 @@ Build a polished, collapsible sidebar using the **shadcn/ui Sidebar component sy
 - Collapsible/minimizable sidebar (icon-only mode)
 - Responsive layout with mobile sheet overlay
 
+**Wrong skill?** This one is for *navigation* — a fixed set of links that collapses to a 48px icon rail. If the sidebar holds *records* instead (conversations, chat history, sessions, documents, projects) with renaming, pinning, drag-to-reorder and right-click menus, use **`conversation-sidebar`**, which follows the Claude desktop pattern and disappears into a hover flyout when collapsed.
+
 ## Quick Start
 
 ```bash
 npx shadcn@latest add sidebar tooltip avatar popover collapsible separator skeleton sheet
 ```
 
-This generates `components/ui/sidebar.tsx` (~770 lines) with ALL sidebar primitives. Do NOT build a custom `<aside>`.
+This generates `components/ui/sidebar.tsx` (~726 lines) with ALL sidebar primitives. Do NOT build a custom `<aside>`.
+
+---
+
+## Collapsed Mode: Fix These Three Before You Ship
+
+Every one of these looks fine in the expanded sidebar and breaks in icon mode. They are the difference between a sidebar that feels finished and one that feels broken. shadcn's generated `sidebar.tsx` ships the first two; the third is on you, and its example blocks invite it.
+
+### 1. Hidden group labels still swallow the hover
+
+**Symptom:** collapsed, you hover an icon and nothing highlights — or the icon *above* the one you are pointing at highlights instead. Clicks land on the wrong row near section boundaries.
+
+**Cause:** `SidebarGroupLabel` hides itself with `-mt-8 opacity-0`. An element at `opacity: 0` is still there and still takes pointer events, so an invisible 32px-tall label sits on top of the icon above it.
+
+**Fix** — in `components/ui/sidebar.tsx`, add `pointer-events-none` to the collapsed variant:
+
+```diff
+ // components/ui/sidebar.tsx — SidebarGroupLabel
+   className={cn(
+-    "flex h-8 shrink-0 items-center rounded-md px-2 ... group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
++    "flex h-8 shrink-0 items-center rounded-md px-2 ... group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0",
+     className
+   )}
+```
+
+Match on the substring `group-data-[collapsible=icon]:opacity-0` — the rest of the class string differs between registry styles.
+
+The same rule applies to anything else you fade out instead of unmounting: `opacity-0` needs `pointer-events-none` beside it, always.
+
+### 2. `overflow-hidden` on the menu button lets the icon slide sideways
+
+**Symptom:** collapsed, something calls `scrollIntoView()` on a label inside a nav button, or focus lands on a descendant *inside* the button, and the icon slides out of its 32px square and stays there — measured at 32px, from x=8 to x=−24. (Tab-focusing the button itself does not do it: the button is the focusable element, so nothing needs revealing.)
+
+**Cause:** `overflow: hidden` still creates a *scroll container*. The collapsed menu button is forced to 32px wide (`size-8!`) while its flex content — a 16px icon, an 8px gap, the label, maybe a badge — is about 170px. The browser is allowed to scroll that container to bring a child into view, and it does; nothing scrolls it back. MDN is explicit: with `hidden`, "scrolling is still possible via other methods including tabbing to hidden focusable elements, properties such as `scrollLeft`, and methods like `scrollTo()`", while with `clip` "the element box is not a scroll container … programmatic scrolling is not supported" ([MDN: overflow](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow)).
+
+**Fix** — one line, on the menu-button base:
+
+```diff
+ // sidebarMenuButtonVariants base string
+-"peer/menu-button ... flex w-full items-center gap-2 overflow-hidden rounded-md p-2 ..."
++"peer/menu-button ... flex w-full items-center gap-2 overflow-hidden overflow-clip rounded-md p-2 ..."
+```
+
+Measured: with `hidden`, `button.scrollLeft = 100` sticks and a `scrollIntoView()` on the label shifts the icon 32px. With `clip`, both are refused.
+
+Keep `overflow-hidden` in front of `overflow-clip`. On Safari 15 the `clip` declaration is invalid and dropped, and a button that falls back to `overflow: visible` is the one case that really does make the whole icon column scroll sideways (measured: `scrollWidth` 169 against a 48px rail).
+
+Match on the substring `overflow-hidden rounded-md p-2` rather than the whole class string — registry styles differ (the `radix-nova` style inserts `group/menu-button` right after `peer/menu-button`).
+
+**Leave `SidebarContent` alone.** Once the button clips, the rail has no horizontal overflow left to scroll — `scrollWidth === clientWidth === 48` — so there is nothing for the container fix to fix. And it would not work anyway: `overflow-x: clip` beside `overflow-y: auto` **computes to `overflow-x: hidden`** in Chromium, WebKit and Firefox alike, because `clip` only survives when the other axis is `visible` or `clip` ([MDN: overflow-x](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x)). There is no CSS pair that scrolls vertically and forbids horizontal scrolling; the single-axis scroll container is still only an editor's draft. A plain `overflow-clip` on `SidebarContent` *does* take effect — and kills vertical scrolling, so a nav taller than the viewport becomes unreachable.
+
+**Support:** `overflow: clip` needs Chrome/Edge 90, Firefox 81, Safari 16 and iOS Safari 16 — Baseline "widely available" since March 2025 ([webstatus.dev](https://webstatus.dev/features/overflow-clip)). The Tailwind utility is `overflow-clip`, available since v3.0.
+
+**Focus rings are not a concern.** `hidden` and `clip` clip paint identically, so this change cannot cut off anything that `overflow-hidden` was not already cutting off, and shadcn tooltips render through a Radix portal at `<body>` level, so they are never clipped. (`overflow-clip-margin` only works with `clip`, and WebKit ignores it — do not build on it.)
+
+### 3. The collapse control in the wrong place
+
+**Symptom:** the toggle floats in the page header, or sits in the footer, or disappears entirely when collapsed, so people cannot get the sidebar back without the keyboard.
+
+**Rule:** the control lives **in the sidebar header row**, and it swaps with state:
+
+| State | Header row |
+|---|---|
+| Expanded | `[avatar + name ————————— collapse ‹]` — the collapse button sits at the right end of the row |
+| Collapsed, idle | `[avatar]` — one 32px icon, nothing else |
+| Collapsed, hovered | `[expand ›]` — the expand button **replaces** the avatar in the same square |
+
+Two things make this feel right:
+
+- **Swap in place.** The expand button is exactly the size of the avatar (`size-8`), so nothing moves when it appears.
+- **Hide the whole trigger, not just the icon inside it.** This is the bug that produces a dead 32px hotspot: the avatar div is hidden on hover but its parent `SidebarMenuButton` (a dropdown trigger) is still there, sitting under the expand button and eating the click.
+
+```tsx
+// The header button hides itself entirely when collapsed AND hovered.
+<SidebarMenuButton size="lg" className="group-data-[collapsible=icon]:group-hover/sidebar:hidden">
+  ...avatar + name...
+</SidebarMenuButton>
+```
+
+### Verify it by hand
+
+With the sidebar collapsed, on desktop:
+
+1. Hover every icon top to bottom. Each one highlights, and the highlight is under the cursor — never one row off.
+2. Hover near a section boundary. Still correct.
+3. Tab from the top of the page through the whole nav. The icon column never shifts sideways.
+4. Hover the header. The avatar becomes the expand button, in the same square, with no layout shift.
+5. Click it. The sidebar expands. Nothing else received that click.
+6. Tooltips appear only when collapsed, never when expanded.
 
 ---
 
@@ -90,18 +180,21 @@ Key selectors and what they do:
 
 ```css
 /* Force menu buttons to 32×32px centered squares when collapsed */
-group-data-[collapsible=icon]:!size-8
-group-data-[collapsible=icon]:!p-2
+group-data-[collapsible=icon]:size-8!
+group-data-[collapsible=icon]:p-2!
 
-/* Hide text labels smoothly (negative margin pulls up, opacity fades) */
+/* Hide text labels smoothly (negative margin pulls up, opacity fades).
+   pointer-events-none is required: a faded label still takes hover. */
 group-data-[collapsible=icon]:-mt-8
+group-data-[collapsible=icon]:pointer-events-none
 group-data-[collapsible=icon]:opacity-0
 
 /* Hard-hide sub-menus, group actions, badges when collapsed */
 group-data-[collapsible=icon]:hidden
 
-/* Prevent horizontal scrollbar in 48px-wide collapsed column */
-group-data-[collapsible=icon]:overflow-hidden
+/* On the menu BUTTON, clip the label overhang: hidden would make the button a
+   scroll container. The container keeps overflow-auto. See "Collapsed Mode" above. */
+overflow-hidden overflow-clip
 ```
 
 ### Peer Coordination (Sidebar ↔ Main Content)
@@ -122,14 +215,15 @@ This is the most important detail. `SidebarMenuButton` uses CVA variants:
 
 ```typescript
 const sidebarMenuButtonVariants = cva(
-  // Base: flex row, gap-2, overflow-hidden, rounded-md, p-2
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm " +
+  // Base: flex row, gap-2, overflow-clip (NOT hidden — see "Collapsed Mode"), rounded-md, p-2
+  "peer/menu-button flex w-full items-center gap-2 overflow-clip rounded-md p-2 text-left text-sm " +
   // Auto-truncate the last span (label text)
   "[&>span:last-child]:truncate " +
   // Icons: always 16×16, never shrink
   "[&>svg]:size-4 [&>svg]:shrink-0 " +
-  // COLLAPSED: force to 32×32 square with centered icon
-  "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 " +
+  // COLLAPSED: force to 32×32 square with centered icon.
+  // Tailwind v4 registry writes important as a suffix (`size-8!`); v3 wrote it as a prefix (`!size-8`).
+  "group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! " +
   // Transitions on width, height, padding (not all)
   "transition-[width,height,padding] " +
   // Active state
@@ -139,7 +233,7 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default: "h-8 text-sm",                                    // 32px — nav items
         sm: "h-7 text-xs",                                         // 28px — compact
-        lg: "h-12 text-sm group-data-[collapsible=icon]:!p-0",    // 48px — header (workspace switcher)
+        lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",     // 48px — header (workspace switcher)
       },
     },
   }
@@ -148,13 +242,13 @@ const sidebarMenuButtonVariants = cva(
 
 **Why everything centers when collapsed:**
 - Container is `3rem` (48px) wide with `p-2` (8px each side) = 32px usable
-- Button forced to `!size-8` (32px) with `!p-2` (8px padding) = icon at center
-- `overflow-hidden` clips any text that hasn't faded yet
+- Button forced to `size-8!` (32px) with `p-2!` (8px padding) = icon at center
+- `overflow-clip` clips any text that hasn't faded yet, without becoming a scroll container
 - Icons have `[&>svg]:size-4 [&>svg]:shrink-0` = always 16×16, never compressed
 
 **Size `"lg"` for header:**
 - `h-12` (48px) gives room for two-line text (name + subtitle)
-- `group-data-[collapsible=icon]:!p-0` removes padding so the h-7 w-7 avatar fits cleanly
+- `group-data-[collapsible=icon]:p-0!` removes padding so the 32px avatar fits cleanly
 
 ### Built-in Tooltip System
 
@@ -230,7 +324,7 @@ function ExpandButton() {
       <TooltipTrigger asChild>
         <button
           onClick={(e) => { e.stopPropagation(); toggleSidebar() }}
-          className="hidden group-hover/sidebar:flex items-center justify-center h-7 w-7 rounded-md bg-accent text-foreground cursor-pointer hover:bg-accent/80 transition-colors shrink-0"
+          className="hidden size-8 shrink-0 items-center justify-center rounded-md bg-accent text-foreground transition-colors group-hover/sidebar:flex hover:bg-accent/80 cursor-pointer"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
@@ -243,7 +337,7 @@ function ExpandButton() {
 
 Key classes:
 - `hidden group-hover/sidebar:flex` — invisible by default, appears when sidebar hovered
-- `h-7 w-7` — matches the org avatar exactly (zero layout shift)
+- `size-8` — matches the org avatar exactly, so the swap shifts nothing. Every collapsed control in the rail is 32px; do not mix in `h-7 w-7`
 - `e.stopPropagation()` — prevents the click from reaching the PopoverTrigger behind it
 
 ### CollapseToggle
@@ -258,7 +352,7 @@ function CollapseToggle() {
       <TooltipTrigger asChild>
         <button
           onClick={toggleSidebar}
-          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
         >
           <PanelLeftOpen className="h-4 w-4 rotate-180" />
         </button>
@@ -273,27 +367,28 @@ Key: same `PanelLeftOpen` icon with `rotate-180` — not a separate `PanelLeftCl
 
 ### Org/Team Avatar (Hides on Hover When Collapsed)
 
+Hide the **whole button**, not the avatar inside it. The button is the dropdown trigger; leaving it mounted under the expand button is what creates a dead click target (see "Collapsed Mode" above).
+
 ```tsx
-<SidebarMenuButton size="lg" className={cn("w-full cursor-pointer", collapsed && "justify-center")}>
-  <div className={cn(
-    "flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0",
-    collapsed && "group-hover/sidebar:hidden"  // ← KEY: hides when sidebar hovered
-  )}>
-    {initial}
+<SidebarMenuButton
+  size="lg"
+  className="data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:group-hover/sidebar:hidden"
+>
+  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
+    {initials}
   </div>
-  {!collapsed && (
-    <>
-      <div className="flex-1 min-w-0 text-left">
-        <p className="text-sm font-semibold truncate leading-tight">{name}</p>
-        <p className="text-[10px] text-muted-foreground leading-tight">{subtitle}</p>
-      </div>
-      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-    </>
-  )}
+  <div className="grid flex-1 text-left leading-tight">
+    <span className="truncate text-sm font-medium">{name}</span>
+    <span className="truncate text-xs text-muted-foreground">{subtitle}</span>
+  </div>
+  <ChevronDown className="ml-auto size-4 shrink-0 opacity-60" />
 </SidebarMenuButton>
 ```
 
-Note: `leading-tight` on both lines keeps them compact within the `h-12` (size="lg") button.
+Notes:
+- `size-8` on the avatar matches `ExpandButton` exactly, so the swap causes no layout shift.
+- `grid flex-1` plus `leading-tight` keeps two lines inside the `h-12` (`size="lg"`) button.
+- Hide the trigger with the CSS classes above, not a `collapsed &&` JS branch: the state is read from a cookie on the server and a JS branch flashes the wrong variant on hydration. The text *inside* the button can be rendered either way — the CVA clips it when collapsed.
 
 ---
 
@@ -342,7 +437,7 @@ function NavItem({ href, label, icon: Icon, badge, onClick }: {
 }
 ```
 
-When collapsed: icon centers at 32×32, span truncates to invisible, badge hides (overflow-hidden clips it), tooltip appears on hover.
+When collapsed: icon centers at 32×32, span truncates to invisible, badge hides (`overflow-clip` clips it), tooltip appears on hover.
 
 ### Collapsible Nested Section
 
@@ -393,7 +488,7 @@ function CollapsibleSection({ label, icon: Icon, items }: { ... }) {
 </SidebarGroup>
 ```
 
-Built-in auto-hide uses `-mt-8 opacity-0` (NOT `display:none`). This keeps the label in DOM so items below shift up with a smooth `transition-[margin,opacity] duration-200 ease-linear` instead of a hard jump.
+Built-in auto-hide uses `-mt-8 opacity-0 pointer-events-none` (NOT `display:none`). The `pointer-events-none` is not optional: without it the invisible label steals hover from the icon above it (see "Collapsed Mode"). Keeping the label in the DOM lets items below shift up with a smooth `transition-[margin,opacity] duration-200 ease-linear` instead of a hard jump.
 
 ### Inline Action Button (Show on Hover)
 
@@ -482,7 +577,7 @@ function UserRow() {
 }
 ```
 
-Uses `SidebarMenuButton tooltip=` so collapsed state gets auto-tooltip. Avatar at `h-6 w-6` fits within the `!size-8` collapsed button.
+Uses `SidebarMenuButton tooltip=` so collapsed state gets auto-tooltip. Avatar at `size-6` fits within the `size-8!` collapsed button.
 
 ---
 
@@ -499,11 +594,12 @@ function OrgSwitcher() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <SidebarMenuButton size="lg" className={cn("w-full cursor-pointer", collapsed && "justify-center")}>
-          <div className={cn(
-            "flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0",
-            collapsed && "group-hover/sidebar:hidden"
-          )}>
+        {/* The WHOLE trigger hides on hover when collapsed — see "Collapsed Mode". */}
+        <SidebarMenuButton
+          size="lg"
+          className="w-full cursor-pointer group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:group-hover/sidebar:hidden"
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
             {initial}
           </div>
           {!collapsed && (
@@ -579,7 +675,7 @@ const toggleSidebar = () => isMobile ? setOpenMobile(o => !o) : setOpen(o => !o)
 Mobile trigger in your page header:
 
 ```tsx
-<SidebarTrigger className="md:hidden" />  // PanelLeft icon, h-7 w-7
+<SidebarTrigger className="md:hidden" />  // PanelLeft icon, size-7 by default
 ```
 
 The `useIsMobile` hook:
@@ -646,7 +742,7 @@ function SidebarSkeleton() {
     <div className="flex min-h-screen">
       <div className="w-64 shrink-0 border-r bg-sidebar p-3 space-y-4">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-md bg-muted animate-pulse" />
+          <div className="size-8 rounded-md bg-muted animate-pulse" />
           <div className="flex-1 space-y-1.5">
             <div className="h-3 w-28 rounded bg-muted animate-pulse" />
             <div className="h-2 w-16 rounded bg-muted animate-pulse" />
@@ -756,27 +852,39 @@ export function AppSidebar() {
 ## CSS Variables (globals.css)
 
 ```css
+/* Tailwind v4 — what `npx shadcn@latest add sidebar` installs today.
+   Raw colour values in :root, exposed to utilities through @theme inline. No tailwind.config.ts. */
 :root {
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: 240 5.3% 26.1%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-accent: 220 14.3% 95.9%;
-  --sidebar-accent-foreground: 220.9 39.3% 11%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 .dark {
-  --sidebar: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 ```
 
-Tailwind config (`theme.extend.colors`):
+**On Tailwind v3** there is no `@theme inline`. Use HSL triplets in `:root` and map them in `tailwind.config.ts`:
 
 ```ts
+// theme.extend.colors
 sidebar: {
   DEFAULT: "hsl(var(--sidebar))",
   foreground: "hsl(var(--sidebar-foreground))",
@@ -786,6 +894,8 @@ sidebar: {
   ring: "hsl(var(--sidebar-ring))",
 },
 ```
+
+Check which you are on before copying: `npx shadcn@latest add sidebar` installs the v4 registry, and mixing the two leaves every sidebar colour unresolved.
 
 ---
 
@@ -798,7 +908,7 @@ sidebar: {
 - `useSidebar()` to read state — never prop-drill `collapsed`
 - `SidebarMenuButton tooltip={label}` for auto-tooltips
 - `group-data-[collapsible=icon]:` selectors for collapsed styling
-- Match expand button and avatar sizes exactly (`h-7 w-7`)
+- Match expand button and avatar sizes exactly (`size-8`, 32px — every control in the collapsed rail is 32px)
 - `e.stopPropagation()` on expand button (prevents popover trigger)
 - `PanelLeftOpen` with `rotate-180` for collapse (one icon, not two)
 - `leading-tight` for multi-line text in header button
@@ -806,6 +916,9 @@ sidebar: {
 - `truncate` on all text that could overflow
 - `min-w-0` on flex children that contain truncated text
 - `cursor-pointer` on all clickable elements
+- `overflow-hidden overflow-clip` on the menu-button base, so it cannot become a scroll container
+- `pointer-events-none` next to every `opacity-0` that hides something in icon mode
+- Hide the whole header trigger on hover when collapsed, not the avatar inside it
 
 ### DO NOT
 
@@ -813,9 +926,11 @@ sidebar: {
 - Use `transition-all` — use specific properties (`transition-[width]`)
 - Build a custom `<aside>` — use the shadcn/ui Sidebar system
 - Use `w-16` (64px) for collapsed — it's `3rem` (48px) via CSS var
-- Use `display:none` for group labels — use the `-mt-8 opacity-0` trick
+- Use `display:none` for group labels — use `-mt-8 opacity-0 pointer-events-none`
 - Use `h-screen` — use `h-dvh` for mobile Safari compatibility
 - Add `TooltipProvider` yourself — it's already in `SidebarProvider`
+- Leave the collapse toggle floating in the page header — it belongs in the sidebar header row
+- Fade an element out with `opacity-0` alone — it keeps its hit area and steals hover from the row above
 - Put `Tooltip`-wrapped elements inside a `Popover`/`Dialog` content — Radix tooltips trigger on **focus**, not just hover. When a popover opens, focus moves into its content and auto-fires the tooltip on the first focusable element. See "Tooltip-on-Focus Gotcha" below.
 
 ---
@@ -875,7 +990,11 @@ function ThemeToggle({ showTooltips = true }: ThemeToggleProps) {
 - [ ] `Sidebar collapsible="icon" className="border-r group/sidebar"`
 - [ ] `ExpandButton`: `hidden group-hover/sidebar:flex`, same size as avatar
 - [ ] `CollapseToggle`: `PanelLeftOpen rotate-180`, conditional render
-- [ ] Avatar: `group-hover/sidebar:hidden` when collapsed
+- [ ] Header trigger (whole button): `group-data-[collapsible=icon]:group-hover/sidebar:hidden`
+- [ ] `SidebarGroupLabel` has `pointer-events-none` in icon mode
+- [ ] The menu-button base uses `overflow-hidden overflow-clip` (and `SidebarContent` is left on `overflow-auto`)
+- [ ] Collapsed hover checked icon by icon — highlight always under the cursor
+- [ ] Tab through the collapsed nav — the icon column never shifts sideways
 - [ ] All nav items use `SidebarMenuButton tooltip={label}`
 - [ ] Group labels use `SidebarGroupLabel` (auto-hides)
 - [ ] Collapsible sections use `Collapsible` + `SidebarMenuSub`
